@@ -22,6 +22,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TaskServiceTest {
 
@@ -138,6 +140,26 @@ class TaskServiceTest {
         assertThatThrownBy(() -> TaskQuery.builder().dueDateRange(fromDate, toDate).build())
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Invalid date range");
+    }
+    
+    @Test
+    void updateTaskRejectsBlankTitle(){
+        UUID projectId = projectService.createProject("P", "D").getId();
+        Task task = taskService.createTask(projectId, "Orig Title", "", Priority.MEDIUM, 30, null);
+        
+        assertThrows(ValidationException.class, () ->
+            taskService.updateTask(task.getId(), "", "Desc", Priority.MEDIUM, 30, null)
+        );
+    }
+    
+    @Test
+    void updateTaskRejectsNegativeEstimate(){
+        UUID projectId = projectService.createProject("P", "D").getId();
+        Task task = taskService.createTask(projectId, "Orig Title", "", Priority.MEDIUM, 30, null);
+        
+        assertThrows(ValidationException.class, () ->
+            taskService.updateTask(task.getId(), "New title", "Desc", Priority.MEDIUM, -10, null)
+        );
     }
 
     @ParameterizedTest

@@ -11,6 +11,7 @@ import cz.upce.fei.nnptp.taskpulse.service.TaskService;
 import cz.upce.fei.nnptp.taskpulse.service.TaskSortOrder;
 
 import java.io.PrintStream;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -88,6 +89,7 @@ public class TaskPulseCli {
         out.println("  project edit <project-id> <name> [description]");
         out.println("  project delete <project-id>");
         out.println("  task add <project-id> <title> [description]");
+        out.println("  task update <<task-id> <title> [description] [--priority <priority>] [--estimate <minutes>] [--due <date>]");
         out.println("  task list [--project <id>] [--state <state>] [--priority <priority>] [--label <label>]"
                 + " [--search <text>] [--overdue] [--exceeded [<minutes>]] [--sort <title|priority|duedate|priority-duedate>]");
         out.println("  task show <task-id>");
@@ -267,6 +269,41 @@ public class TaskPulseCli {
                 } else {
                     err.println("Unknown label action: " + sub);
                 }
+            }
+            case "update" -> {
+                if (args.size() < 3) {
+                    err.println("Usage: task update <task-id> <title> [description] [--priority <priority>] [--estimate <minutes>] [--due <date>]");
+                    return;
+                }
+                UUID id = parseUuid(args.get(1));
+                String title = args.get(2);
+                String desc = "";
+                Priority priority = Priority.MEDIUM;
+                Integer estimate = null;
+                LocalDate dueDate = null;
+
+                int i = 3;
+                if (i < args.size() && !args.get(i).startsWith("--")) {
+                    desc = args.get(i++);
+                }
+
+                for (; i < args.size(); i++) {
+                    String flag = args.get(i);
+                    if ("--priority".equalsIgnoreCase(flag) && i + 1 < args.size()) {
+                        priority = parsePriority(args.get(++i));
+                    } else if ("--estimate".equalsIgnoreCase(flag) && i + 1 < args.size()) {
+                        try {
+                            estimate = Integer.parseInt(args.get(++i));
+                        } catch (NumberFormatException e) {
+                            throw new IllegalArgumentException("Estimate must be an integer");
+                        }
+                    } else if ("--due".equalsIgnoreCase(flag) && i + 1 < args.size()) {
+                        dueDate = LocalDate.parse(args.get(++i));
+                    }
+                }
+                
+                Task updated = taskService.updateTask(id, title, desc, priority, estimate, dueDate);
+                out.println("Task updated: " + updated.getId() + " - " + updated.getTitle());
             }
             case "delete" -> {
                 if (args.size() < 2) {

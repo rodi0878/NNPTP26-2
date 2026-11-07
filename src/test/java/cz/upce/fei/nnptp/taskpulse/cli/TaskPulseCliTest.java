@@ -48,7 +48,7 @@ class TaskPulseCliTest {
     void helpCommandDisplaysAvailableCommands() {
         boolean continueRunning = cli.executeLine("help");
         assertThat(continueRunning).isTrue();
-        assertThat(outContent.toString()).contains("Available commands:", "project add", "task add", "worklog log",
+        assertThat(outContent.toString()).contains("Available commands:", "project add", "task add", "task update", "worklog log",
                 "--exceeded [<minutes>]");
     }
 
@@ -176,6 +176,45 @@ class TaskPulseCliTest {
         Scanner scanner = new Scanner("help\nexit\n");
         cli.runInteractive(scanner);
         assertThat(outContent.toString()).contains("TaskPulse CLI", "Available commands:");
+    }
+    
+    @Test
+    void taskUpdateViaCliUpdatesTask() {
+        var project = projectService.createProject("Course", "Desc");
+        var task = taskService.createTask(project.getId(), "Old Title", "Old Desc", Priority.LOW, 10, null);
+
+        cli.executeLine("task update " + task.getId() + " \"New Title\" \"New Desc\" --priority HIGH --estimate 60");
+
+        assertThat(errContent.toString()).isEmpty();
+        assertThat(outContent.toString()).contains("Task updated:", "New Title");
+
+        Task updated = taskService.getTask(task.getId());
+        assertThat(updated.getTitle()).isEqualTo("New Title");
+        assertThat(updated.getDescription()).isEqualTo("New Desc");
+        assertThat(updated.getPriority()).isEqualTo(Priority.HIGH);
+        assertThat(updated.getEstimatedMinutes()).isEqualTo(60);
+    }
+    
+    @Test
+    void taskUpdateRejectsBlankTitle() {
+        var project = projectService.createProject("Course", "Desc");
+        var task = taskService.createTask(project.getId(), "Initial Title", "", Priority.MEDIUM, 30, null);
+
+        cli.executeLine("task update " + task.getId() + " \"   \"");
+
+        assertThat(errContent.toString()).contains("Task title must not be blank");
+        assertThat(errContent.toString()).doesNotContain("Exception in thread", "at cz.upce");
+    }
+    
+    @Test
+    void taskUpdateRejectsNegativeEstimate() {
+        var project = projectService.createProject("Course", "Desc");
+        var task = taskService.createTask(project.getId(), "Initial Title", "", Priority.MEDIUM, 30, null);
+
+        cli.executeLine("task update " + task.getId() + " \"Valid Title\" --estimate -15");
+
+        assertThat(errContent.toString()).contains("Estimated minutes cannot be negative");
+        assertThat(errContent.toString()).doesNotContain("Exception in thread", "at cz.upce");
     }
 
     @ParameterizedTest

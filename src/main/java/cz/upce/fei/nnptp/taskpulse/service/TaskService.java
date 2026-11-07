@@ -2,6 +2,7 @@ package cz.upce.fei.nnptp.taskpulse.service;
 
 import cz.upce.fei.nnptp.taskpulse.domain.*;
 import cz.upce.fei.nnptp.taskpulse.domain.exception.ResourceNotFoundException;
+import cz.upce.fei.nnptp.taskpulse.domain.exception.ValidationException;
 import cz.upce.fei.nnptp.taskpulse.storage.ProjectRepository;
 import cz.upce.fei.nnptp.taskpulse.storage.TaskRepository;
 
@@ -65,6 +66,16 @@ public class TaskService {
 
     public Task updateTask(UUID id, String title, String description, Priority priority,
                            Integer estimatedMinutes, LocalDate dueDate) {
+        if(title == null || title.isBlank()){
+            throw new ValidationException("Task title must not be blank");
+        }
+        if(estimatedMinutes != null && estimatedMinutes < 0){
+            throw new ValidationException("Estimated minutes cannot be negative, got: " + estimatedMinutes);
+        }
+        if(priority == null){
+            priority = Priority.MEDIUM;
+        }
+        
         Task task = getTask(id);
         task.setTitle(title);
         task.setDescription(description);
