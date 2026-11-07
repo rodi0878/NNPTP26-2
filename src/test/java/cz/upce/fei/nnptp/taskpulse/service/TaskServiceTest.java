@@ -25,141 +25,282 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TaskServiceTest {
 
-    private InMemoryProjectRepository projectRepository;
-    private InMemoryTaskRepository taskRepository;
-    private ProjectService projectService;
-    private TaskService taskService;
-    private Clock fixedClock;
+	private InMemoryProjectRepository projectRepository;
+	private InMemoryTaskRepository taskRepository;
+	private ProjectService projectService;
+	private TaskService taskService;
+	private Clock fixedClock;
 
-    @BeforeEach
-    void setUp() {
-        projectRepository = new InMemoryProjectRepository();
-        taskRepository = new InMemoryTaskRepository();
-        Instant fixedInstant = Instant.parse("2026-10-21T10:00:00Z");
-        fixedClock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
+	@BeforeEach
+	void setUp() {
+		projectRepository = new InMemoryProjectRepository();
+		taskRepository = new InMemoryTaskRepository();
+		Instant fixedInstant = Instant.parse("2026-10-21T10:00:00Z");
+		fixedClock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
 
-        projectService = new ProjectService(projectRepository, taskRepository);
-        taskService = new TaskService(taskRepository, projectRepository, fixedClock);
-    }
+		projectService = new ProjectService(projectRepository, taskRepository);
+		taskService = new TaskService(taskRepository, projectRepository, fixedClock);
+	}
 
-    @Test
-    void createTaskWithValidProject() {
-        Project project = projectService.createProject("Dev", "Dev project");
-        Task task = taskService.createTask(project.getId(), "Task 1", "Desc 1", Priority.HIGH, 60, LocalDate.of(2026, 10, 25));
+	@Test
+	void createTaskWithValidProject() {
+		Project project = projectService.createProject("Dev", "Dev project");
+		Task task = taskService.createTask(project.getId(), "Task 1", "Desc 1", Priority.HIGH, 60,
+				LocalDate.of(2026, 10, 25));
 
-        assertThat(task.getId()).isNotNull();
-        assertThat(task.getProjectId()).isEqualTo(project.getId());
-        assertThat(task.getTitle()).isEqualTo("Task 1");
-        assertThat(task.getPriority()).isEqualTo(Priority.HIGH);
-    }
+		assertThat(task.getId()).isNotNull();
+		assertThat(task.getProjectId()).isEqualTo(project.getId());
+		assertThat(task.getTitle()).isEqualTo("Task 1");
+		assertThat(task.getPriority()).isEqualTo(Priority.HIGH);
+	}
 
-    @Test
-    void rejectTaskCreationForNonExistentProject() {
-        UUID fakeProjectId = UUID.randomUUID();
-        assertThatThrownBy(() -> taskService.createTask(fakeProjectId, "Task 1", "", Priority.LOW, null, null))
-                .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("Project not found");
-    }
+	@Test
+	void rejectTaskCreationForNonExistentProject() {
+		UUID fakeProjectId = UUID.randomUUID();
+		assertThatThrownBy(() -> taskService.createTask(fakeProjectId, "Task 1", "", Priority.LOW, null, null))
+				.isInstanceOf(ResourceNotFoundException.class)
+				.hasMessageContaining("Project not found");
+	}
 
-    @Test
-    void cannotDeleteProjectWithTasks() {
-        Project project = projectService.createProject("Dev", "");
-        taskService.createTask(project.getId(), "T1", "", Priority.LOW, null, null);
+	@Test
+	void cannotDeleteProjectWithTasks() {
+		Project project = projectService.createProject("Dev", "");
+		taskService.createTask(project.getId(), "T1", "", Priority.LOW, null, null);
 
-        assertThatThrownBy(() -> projectService.deleteProject(project.getId()))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("contains 1 task");
+		assertThatThrownBy(() -> projectService.deleteProject(project.getId()))
+				.isInstanceOf(ValidationException.class)
+				.hasMessageContaining("contains 1 task");
 
-        assertThat(projectRepository.existsById(project.getId())).isTrue();
-    }
+		assertThat(projectRepository.existsById(project.getId())).isTrue();
+	}
 
-    @Test
-    void canDeleteEmptyProject() {
-        Project project = projectService.createProject("Empty", "");
-        projectService.deleteProject(project.getId());
+	@Test
+	void canDeleteEmptyProject() {
+		Project project = projectService.createProject("Empty", "");
+		projectService.deleteProject(project.getId());
 
-        assertThat(projectRepository.existsById(project.getId())).isFalse();
-    }
+		assertThat(projectRepository.existsById(project.getId())).isFalse();
+	}
 
-    @Test
-    void labelManagementViaService() {
-        Project project = projectService.createProject("P", "");
-        Task task = taskService.createTask(project.getId(), "T", "", Priority.MEDIUM, null, null);
+	@Test
+	void labelManagementViaService() {
+		Project project = projectService.createProject("P", "");
+		Task task = taskService.createTask(project.getId(), "T", "", Priority.MEDIUM, null, null);
 
-        taskService.addLabel(task.getId(), "Frontend");
-        assertThat(taskService.getTask(task.getId()).getLabels()).containsExactly("frontend");
+		taskService.addLabel(task.getId(), "Frontend");
+		assertThat(taskService.getTask(task.getId()).getLabels()).containsExactly("frontend");
 
-        taskService.removeLabel(task.getId(), "frontend");
-        assertThat(taskService.getTask(task.getId()).getLabels()).isEmpty();
-    }
+		taskService.removeLabel(task.getId(), "frontend");
+		assertThat(taskService.getTask(task.getId()).getLabels()).isEmpty();
+	}
 
-    @Test
-    void filterTasksByCombinedCriteria() {
-        Project project = projectService.createProject("P", "");
-        Task t1 = taskService.createTask(project.getId(), "Alpha Bug", "Critical bug in backend", Priority.CRITICAL, 30, LocalDate.of(2026, 10, 20));
-        taskService.addLabel(t1.getId(), "bug");
+	@Test
+	void filterTasksByCombinedCriteria() {
+		Project project = projectService.createProject("P", "");
+		Task t1 = taskService.createTask(project.getId(), "Alpha Bug", "Critical bug in backend",
+				Priority.CRITICAL, 30,
+				LocalDate.of(2026, 10, 20));
+		taskService.addLabel(t1.getId(), "bug");
 
-        Task t2 = taskService.createTask(project.getId(), "Beta Feature", "Frontend view", Priority.LOW, 60, LocalDate.of(2026, 10, 22));
-        taskService.addLabel(t2.getId(), "feature");
+		Task t2 = taskService.createTask(project.getId(), "Beta Feature", "Frontend view", Priority.LOW, 60,
+				LocalDate.of(2026, 10, 22));
+		taskService.addLabel(t2.getId(), "feature");
 
-        TaskQuery query = TaskQuery.builder()
-                .priority(Priority.CRITICAL)
-                .label("bug")
-                .textSearch("backend")
-                .build();
+		TaskQuery query = TaskQuery.builder()
+				.priority(Priority.CRITICAL)
+				.label("bug")
+				.textSearch("backend")
+				.build();
 
-        List<Task> results = taskService.findTasks(query);
-        assertThat(results).containsExactly(t1);
-    }
+		List<Task> results = taskService.findTasks(query);
+		assertThat(results).containsExactly(t1);
+	}
 
-    @Test
-    void filterTasksByOverdue() {
-        Project project = projectService.createProject("P", "");
-        LocalDate today = LocalDate.now(fixedClock);
+	@Test
+	void filterTasksByOverdue() {
+		Project project = projectService.createProject("P", "");
+		LocalDate today = LocalDate.now(fixedClock);
 
-        Task overdueTask = taskService.createTask(project.getId(), "Overdue", "", Priority.HIGH, null, today.minusDays(1));
-        Task dueTodayTask = taskService.createTask(project.getId(), "Due Today", "", Priority.HIGH, null, today);
-        Task futureTask = taskService.createTask(project.getId(), "Future", "", Priority.HIGH, null, today.plusDays(1));
+		Task overdueTask = taskService.createTask(project.getId(), "Overdue", "", Priority.HIGH, null,
+				today.minusDays(1));
+		Task dueTodayTask = taskService.createTask(project.getId(), "Due Today", "", Priority.HIGH, null,
+				today);
+		Task futureTask = taskService.createTask(project.getId(), "Future", "", Priority.HIGH, null,
+				today.plusDays(1));
 
-        TaskQuery overdueQuery = TaskQuery.builder().overdue(true).build();
-        List<Task> overdueResults = taskService.findTasks(overdueQuery);
-        assertThat(overdueResults).containsExactly(overdueTask);
+		TaskQuery overdueQuery = TaskQuery.builder().overdue(true).build();
+		List<Task> overdueResults = taskService.findTasks(overdueQuery);
+		assertThat(overdueResults).containsExactly(overdueTask);
 
-        TaskQuery notOverdueQuery = TaskQuery.builder().overdue(false).build();
-        List<Task> notOverdueResults = taskService.findTasks(notOverdueQuery);
-        assertThat(notOverdueResults).contains(dueTodayTask, futureTask);
-    }
+		TaskQuery notOverdueQuery = TaskQuery.builder().overdue(false).build();
+		List<Task> notOverdueResults = taskService.findTasks(notOverdueQuery);
+		assertThat(notOverdueResults).contains(dueTodayTask, futureTask);
+	}
 
-    @Test
-    void rejectInvertedDueDateRange() {
-        LocalDate fromDate = LocalDate.of(2026, 10, 25);
-        LocalDate toDate = LocalDate.of(2026, 10, 20);
+	@Test
+	void filterTasksByInclusiveDueDateRange() {
+		// Arrange
+		Project project = projectService.createProject("Test", "");
 
-        assertThatThrownBy(() -> TaskQuery.builder().dueDateRange(fromDate, toDate).build())
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Invalid date range");
-    }
+		Task beforeRange = taskService.createTask(project.getId(), "Before", "",
+				Priority.MEDIUM, null, LocalDate.of(2026, 10, 9));
 
-    @ParameterizedTest
-    @CsvSource(value = {
-            "none, 45, 0, false",
-            "0, 0, 0, false",
-            "0, 1, 0, true",
-            "60, 45, 0, false",
-            "60, 60, 0, false",
-            "60, 75, 15, false",
-            "60, 76, 15, true",
-            "1, 2147483650, 2147483648, true"
-    }, nullValues = "none")
-    void filtersByVarianceAboveThreshold(Integer estimate, long recorded, long threshold, boolean expectedMatch) {
-        UUID projectId = projectService.createProject("Planning", "").getId();
-        Task task = taskService.createTask(projectId, "Review", "", Priority.MEDIUM, estimate, null);
-        if (recorded > 0) {
-            taskService.transitionTask(task.getId(), TaskState.IN_PROGRESS);
-            taskService.logWork(task.getId(), recorded, "Dev", "");
-        }
+		Task atStart = taskService.createTask(project.getId(), "Start", "", Priority.MEDIUM, null,
+				LocalDate.of(2026, 10, 10));
 
-        TaskQuery query = TaskQuery.builder().varianceThresholdMinutes(threshold).build();
-        assertThat(taskService.findTasks(query)).isEqualTo(expectedMatch ? List.of(task) : List.of());
-    }
+		Task insideRange = taskService.createTask(project.getId(), "Inside", "", Priority.MEDIUM, null,
+				LocalDate.of(2026, 10, 15));
+
+		Task atEnd = taskService.createTask(project.getId(), "End", "", Priority.MEDIUM, null,
+				LocalDate.of(2026, 10, 20));
+
+		Task afterRange = taskService.createTask(project.getId(), "After", "", Priority.MEDIUM, null,
+				LocalDate.of(2026, 10, 21));
+
+		TaskQuery query = TaskQuery.builder().dueDateRange(
+				LocalDate.of(2026, 10, 10),
+				LocalDate.of(2026, 10, 20))
+				.build();
+
+		// ACT
+		List<Task> result = taskService.findTasks(query);
+
+		// ASSERT
+		assertThat(result).containsExactlyInAnyOrder(atStart, insideRange, atEnd);
+	}
+
+	@Test
+	void includesLeapDayInDueDateRange() {
+		// ARRANGE
+		Project project = projectService.createProject("TestLeapDay", "");
+
+		Task taskLeap = taskService.createTask(project.getId(), "Before", "",
+				Priority.MEDIUM, null, LocalDate.of(2024, 2, 29));
+		TaskQuery query = TaskQuery.builder().dueDateRange(LocalDate.of(2024, 2, 28), LocalDate.of(2024, 3, 1))
+				.build();
+
+		// ACT
+		List<Task> result = taskService.findTasks(query);
+		// ASSERT
+		assertThat(result).containsExactly(taskLeap);
+	}
+
+	@Test
+	void onlyFromDueDate() {
+		// ARRANGE
+		Project project = projectService.createProject("Test", "");
+
+		taskService.createTask(
+				project.getId(),
+				"Before",
+				"",
+				Priority.MEDIUM,
+				null,
+				LocalDate.of(2026, 10, 19));
+
+		Task atStart = taskService.createTask(
+				project.getId(), "Start", "",
+				Priority.MEDIUM, null, LocalDate.of(2026, 10, 20));
+
+		Task afterStart = taskService.createTask(
+				project.getId(), "After", "",
+				Priority.MEDIUM, null, LocalDate.of(2026, 10, 25));
+
+		TaskQuery query = TaskQuery.builder()
+				.dueDateRange(
+						LocalDate.of(2026, 10, 20),
+						null)
+				.build();
+
+		// ACT
+		List<Task> result = taskService.findTasks(query);
+
+		// ASSERT
+		assertThat(result).containsExactlyInAnyOrder(atStart, afterStart);
+	}
+
+	@Test
+	void onlyToDueDate() {
+		Project project = projectService.createProject("Test", "");
+
+		Task beforeEnd = taskService.createTask(
+				project.getId(), "Before", "",
+				Priority.MEDIUM, null, LocalDate.of(2026, 10, 19));
+
+		Task atEnd = taskService.createTask(
+				project.getId(), "End", "",
+				Priority.MEDIUM, null, LocalDate.of(2026, 10, 21));
+
+		taskService.createTask(
+				project.getId(), "After", "",
+				Priority.MEDIUM, null, LocalDate.of(2026, 10, 22));
+
+		TaskQuery query = TaskQuery.builder()
+				.dueDateRange(
+						(null), LocalDate.of(2026, 10, 21))
+				.build();
+
+		// ACT
+		List<Task> result = taskService.findTasks(query);
+
+		// ASSERT
+		assertThat(result).containsExactlyInAnyOrder(beforeEnd, atEnd);
+
+	}
+
+	@Test
+	void filtersUndatedTasksWhenDueDateRangeIsActive() {
+		Project project = projectService.createProject("Test", "");
+
+		Task taskInside = taskService.createTask(
+				project.getId(), "Inside", "",
+				Priority.MEDIUM, null, LocalDate.of(2026, 10, 21));
+
+		taskService.createTask(
+				project.getId(), "Undated", "",
+				Priority.MEDIUM, null, null);
+
+		TaskQuery query = TaskQuery.builder()
+				.dueDateRange(
+						LocalDate.of(2026, 10, 20),
+						LocalDate.of(2026, 10, 22))
+				.build();
+
+		List<Task> result = taskService.findTasks(query);
+
+		assertThat(result).containsExactly(taskInside);
+	}
+
+	@Test
+	void rejectInvertedDueDateRange() {
+		LocalDate fromDate = LocalDate.of(2026, 10, 25);
+		LocalDate toDate = LocalDate.of(2026, 10, 20);
+
+		assertThatThrownBy(() -> TaskQuery.builder().dueDateRange(fromDate, toDate).build())
+				.isInstanceOf(ValidationException.class)
+				.hasMessageContaining("Invalid date range");
+	}
+
+	@ParameterizedTest
+	@CsvSource(value = {
+			"none, 45, 0, false",
+			"0, 0, 0, false",
+			"0, 1, 0, true",
+			"60, 45, 0, false",
+			"60, 60, 0, false",
+			"60, 75, 15, false",
+			"60, 76, 15, true",
+			"1, 2147483650, 2147483648, true"
+	}, nullValues = "none")
+	void filtersByVarianceAboveThreshold(Integer estimate, long recorded, long threshold, boolean expectedMatch) {
+		UUID projectId = projectService.createProject("Planning", "").getId();
+		Task task = taskService.createTask(projectId, "Review", "", Priority.MEDIUM, estimate, null);
+		if (recorded > 0) {
+			taskService.transitionTask(task.getId(), TaskState.IN_PROGRESS);
+			taskService.logWork(task.getId(), recorded, "Dev", "");
+		}
+
+		TaskQuery query = TaskQuery.builder().varianceThresholdMinutes(threshold).build();
+		assertThat(taskService.findTasks(query)).isEqualTo(expectedMatch ? List.of(task) : List.of());
+	}
 }

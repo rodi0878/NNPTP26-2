@@ -26,217 +26,253 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CsvStorageManagerTest {
 
-    @TempDir
-    Path tempDir;
+        @TempDir
+        Path tempDir;
 
-    @Test
-    void roundTripWithQuotesCommasNewlinesAndUnicode() {
-        CsvStorageManager storage = new CsvStorageManager(tempDir);
-        InMemoryProjectRepository projectRepo = new InMemoryProjectRepository();
-        InMemoryTaskRepository taskRepo = new InMemoryTaskRepository();
+        @Test
+        void roundTripWithQuotesCommasNewlinesAndUnicode() {
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+                InMemoryProjectRepository projectRepo = new InMemoryProjectRepository();
+                InMemoryTaskRepository taskRepo = new InMemoryTaskRepository();
 
-        Project project = new Project(UUID.randomUUID(), "Proč, \"ano\"?", "Projekt s čárkou, \"uvozovkami\"\na novým řádkem");
-        projectRepo.save(project);
+                Project project = new Project(UUID.randomUUID(), "Proč, \"ano\"?",
+                                "Projekt s čárkou, \"uvozovkami\"\na novým řádkem");
+                projectRepo.save(project);
 
-        Task task = new Task(UUID.randomUUID(), project.getId(), "Úkol s čárkou, \"uvozovkami\"",
-                "Popis\ns řádky\na znaky: Příliš žluťoučký kůň", Priority.HIGH, TaskState.IN_PROGRESS,
-                150, LocalDate.of(2026, 12, 31), List.of("backend", "čestina"), null);
-        task.addWorklog(new Worklog(LocalDateTime.of(2026, 10, 21, 14, 30), 45, "Petr Novák", "Práce, testy \"hotovo\""));
-        taskRepo.save(task);
+                Task task = new Task(UUID.randomUUID(), project.getId(), "Úkol s čárkou, \"uvozovkami\"",
+                                "Popis\ns řádky\na znaky: Příliš žluťoučký kůň", Priority.HIGH, TaskState.IN_PROGRESS,
+                                150, LocalDate.of(2026, 12, 31), List.of("backend", "čestina"), null);
+                task.addWorklog(new Worklog(LocalDateTime.of(2026, 10, 21, 14, 30), 45, "Petr Novák",
+                                "Práce, testy \"hotovo\""));
+                taskRepo.save(task);
 
-        storage.save(projectRepo, taskRepo);
+                storage.save(projectRepo, taskRepo);
 
-        CsvStorageManager.LoadedWorkspace loaded = storage.load();
+                CsvStorageManager.LoadedWorkspace loaded = storage.load();
 
-        assertThat(loaded.projectRepository().findAll()).hasSize(1);
-        Project loadedProject = loaded.projectRepository().findById(project.getId()).orElseThrow();
-        assertThat(loadedProject.getName()).isEqualTo(project.getName());
-        assertThat(loadedProject.getDescription()).isEqualTo(project.getDescription());
+                assertThat(loaded.projectRepository().findAll()).hasSize(1);
+                Project loadedProject = loaded.projectRepository().findById(project.getId()).orElseThrow();
+                assertThat(loadedProject.getName()).isEqualTo(project.getName());
+                assertThat(loadedProject.getDescription()).isEqualTo(project.getDescription());
 
-        assertThat(loaded.taskRepository().findAll()).hasSize(1);
-        Task loadedTask = loaded.taskRepository().findById(task.getId()).orElseThrow();
-        assertThat(loadedTask.getTitle()).isEqualTo(task.getTitle());
-        assertThat(loadedTask.getDescription()).isEqualTo(task.getDescription());
-        assertThat(loadedTask.getPriority()).isEqualTo(Priority.HIGH);
-        assertThat(loadedTask.getState()).isEqualTo(TaskState.IN_PROGRESS);
-        assertThat(loadedTask.getEstimatedMinutes()).isEqualTo(150);
-        assertThat(loadedTask.getDueDate()).isEqualTo(LocalDate.of(2026, 12, 31));
-        assertThat(loadedTask.getLabels()).containsExactlyInAnyOrder("backend", "čestina");
+                assertThat(loaded.taskRepository().findAll()).hasSize(1);
+                Task loadedTask = loaded.taskRepository().findById(task.getId()).orElseThrow();
+                assertThat(loadedTask.getTitle()).isEqualTo(task.getTitle());
+                assertThat(loadedTask.getDescription()).isEqualTo(task.getDescription());
+                assertThat(loadedTask.getPriority()).isEqualTo(Priority.HIGH);
+                assertThat(loadedTask.getState()).isEqualTo(TaskState.IN_PROGRESS);
+                assertThat(loadedTask.getEstimatedMinutes()).isEqualTo(150);
+                assertThat(loadedTask.getDueDate()).isEqualTo(LocalDate.of(2026, 12, 31));
+                assertThat(loadedTask.getLabels()).containsExactlyInAnyOrder("backend", "čestina");
 
-        assertThat(loadedTask.getWorklogs()).hasSize(1);
-        Worklog loadedWorklog = loadedTask.getWorklogs().get(0);
-        assertThat(loadedWorklog.durationMinutes()).isEqualTo(45L);
-        assertThat(loadedWorklog.author()).isEqualTo("Petr Novák");
-        assertThat(loadedWorklog.description()).isEqualTo("Práce, testy \"hotovo\"");
-    }
+                assertThat(loadedTask.getWorklogs()).hasSize(1);
+                Worklog loadedWorklog = loadedTask.getWorklogs().get(0);
+                assertThat(loadedWorklog.durationMinutes()).isEqualTo(45L);
+                assertThat(loadedWorklog.author()).isEqualTo("Petr Novák");
+                assertThat(loadedWorklog.description()).isEqualTo("Práce, testy \"hotovo\"");
 
-    @Test
-    void loadFromNonExistentDirectoryInitializesEmptyWorkspace() {
-        Path nonExistent = tempDir.resolve("does_not_exist");
-        CsvStorageManager storage = new CsvStorageManager(nonExistent);
+                assertThat(loadedWorklog.timestamp())
+                                .isEqualTo(LocalDateTime.of(2026, 10, 21, 14, 30));
+        }
 
-        CsvStorageManager.LoadedWorkspace workspace = storage.load();
-        assertThat(workspace.projectRepository().findAll()).isEmpty();
-        assertThat(workspace.taskRepository().findAll()).isEmpty();
-    }
+        @Test
+        void loadFromNonExistentDirectoryInitializesEmptyWorkspace() {
+                Path nonExistent = tempDir.resolve("does_not_exist");
+                CsvStorageManager storage = new CsvStorageManager(nonExistent);
 
-    @Test
-    void rejectDuplicateProjectIdInCsv() throws IOException {
-        UUID id = UUID.randomUUID();
-        String csvContent = "id,name,description\n" +
-                id + ",Project 1,Desc 1\n" +
-                id + ",Project 2,Desc 2\n";
-        Files.writeString(tempDir.resolve("projects.csv"), csvContent);
+                CsvStorageManager.LoadedWorkspace workspace = storage.load();
+                assertThat(workspace.projectRepository().findAll()).isEmpty();
+                assertThat(workspace.taskRepository().findAll()).isEmpty();
+        }
 
-        CsvStorageManager storage = new CsvStorageManager(tempDir);
-        assertThatThrownBy(storage::load)
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("Duplicate project id");
-    }
+        @Test
+        void rejectDuplicateProjectIdInCsv() throws IOException {
+                UUID id = UUID.randomUUID();
+                String csvContent = "id,name,description\n" +
+                                id + ",Project 1,Desc 1\n" +
+                                id + ",Project 2,Desc 2\n";
+                Files.writeString(tempDir.resolve("projects.csv"), csvContent);
 
-    @Test
-    void rejectTaskReferencingMissingProject() throws IOException {
-        String projectCsv = "id,name,description\n";
-        String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
-                UUID.randomUUID() + "," + UUID.randomUUID() + ",Title,Desc,MEDIUM,TODO,,,\n";
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+                assertThatThrownBy(storage::load)
+                                .isInstanceOf(StorageException.class)
+                                .hasMessageContaining("Duplicate project id");
+        }
 
-        Files.writeString(tempDir.resolve("projects.csv"), projectCsv);
-        Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
+        @Test
+        void rejectTaskReferencingMissingProject() throws IOException {
+                String projectCsv = "id,name,description\n";
+                String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
+                                UUID.randomUUID() + "," + UUID.randomUUID() + ",Title,Desc,MEDIUM,TODO,,,\n";
 
-        CsvStorageManager storage = new CsvStorageManager(tempDir);
-        assertThatThrownBy(storage::load)
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("missing project");
-    }
-    
-    @ParameterizedTest
-    @ValueSource(strings = {";", ";;", " ; ", "backend;;frontend", "backend;", ";backend", "   "})
-    void rejectEmptyLabelEdgeCasesInCsv(String invalidLabels) throws IOException {
-        UUID projectId = UUID.randomUUID();
-        String projectCsv = "id,name,description\n" +
-                projectId + ",Project 1,Desc 1\n";
-        String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
-                UUID.randomUUID() + "," + projectId + ",Title,Desc,MEDIUM,TODO,,," + invalidLabels + "\n";
+                Files.writeString(tempDir.resolve("projects.csv"), projectCsv);
+                Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
 
-        Files.writeString(tempDir.resolve("projects.csv"), projectCsv);
-        Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+                assertThatThrownBy(storage::load)
+                                .isInstanceOf(StorageException.class)
+                                .hasMessageContaining("missing project");
+        }
 
-        CsvStorageManager storage = new CsvStorageManager(tempDir);
-        assertThatThrownBy(storage::load)
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("Label must not be blank");
-    }
-    
-    @Test
-    void loadTaskWithEmptyLabelsFieldSuccessfully() throws IOException {
-        UUID projectId = UUID.randomUUID();
-        UUID taskId = UUID.randomUUID();
-        String projectCsv = "id,name,description\n" +
-                projectId + ",Project 1,Desc 1\n";
-        String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
-                taskId + "," + projectId + ",Title,Desc,MEDIUM,TODO,,,\n";
+        @ParameterizedTest
+        @ValueSource(strings = { ";", ";;", " ; ", "backend;;frontend", "backend;", ";backend", "   " })
+        void rejectEmptyLabelEdgeCasesInCsv(String invalidLabels) throws IOException {
+                UUID projectId = UUID.randomUUID();
+                String projectCsv = "id,name,description\n" +
+                                projectId + ",Project 1,Desc 1\n";
+                String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
+                                UUID.randomUUID() + "," + projectId + ",Title,Desc,MEDIUM,TODO,,," + invalidLabels
+                                + "\n";
 
-        Files.writeString(tempDir.resolve("projects.csv"), projectCsv);
-        Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
+                Files.writeString(tempDir.resolve("projects.csv"), projectCsv);
+                Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
 
-        CsvStorageManager storage = new CsvStorageManager(tempDir);
-        CsvStorageManager.LoadedWorkspace workspace = storage.load();
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+                assertThatThrownBy(storage::load)
+                                .isInstanceOf(StorageException.class)
+                                .hasMessageContaining("Label must not be blank");
+        }
 
-        Task loadedTask = workspace.taskRepository().findById(taskId).orElseThrow();
-        assertThat(loadedTask.getLabels()).isEmpty();
-    }
+        @Test
+        void loadTaskWithEmptyLabelsFieldSuccessfully() throws IOException {
+                UUID projectId = UUID.randomUUID();
+                UUID taskId = UUID.randomUUID();
+                String projectCsv = "id,name,description\n" +
+                                projectId + ",Project 1,Desc 1\n";
+                String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
+                                taskId + "," + projectId + ",Title,Desc,MEDIUM,TODO,,,\n";
 
-    @Test
-    void malformedDueDateReportsLineAndColumnAndToken() throws IOException {
-        UUID projectId = UUID.randomUUID();
-        Files.writeString(tempDir.resolve("projects.csv"),
-                "id,name,description\n" + projectId + ",Project,\n");
-        String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
-                UUID.randomUUID() + "," + projectId + ",Title,Desc,MEDIUM,TODO,,31-02-2026,\n";
-        Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
+                Files.writeString(tempDir.resolve("projects.csv"), projectCsv);
+                Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
 
-        CsvStorageManager storage = new CsvStorageManager(tempDir);
-        assertThatThrownBy(storage::load)
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("Malformed value in tasks.csv")
-                .hasMessageContaining("line 2")
-                .hasMessageContaining("column 'dueDate'")
-                .hasMessageContaining("31-02-2026");
-    }
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+                CsvStorageManager.LoadedWorkspace workspace = storage.load();
 
-    @Test
-    void malformedEstimatedMinutesReportsLineAndColumnAndToken() throws IOException {
-        UUID projectId = UUID.randomUUID();
-        Files.writeString(tempDir.resolve("projects.csv"),
-                "id,name,description\n" + projectId + ",Project,\n");
-        String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
-                UUID.randomUUID() + "," + projectId + ",Title,Desc,MEDIUM,TODO,abc,,\n";
-        Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
+                Task loadedTask = workspace.taskRepository().findById(taskId).orElseThrow();
+                assertThat(loadedTask.getLabels()).isEmpty();
+        }
 
-        CsvStorageManager storage = new CsvStorageManager(tempDir);
-        assertThatThrownBy(storage::load)
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("line 2")
-                .hasMessageContaining("column 'estimatedMinutes'")
-                .hasMessageContaining("abc");
-    }
+        @Test
+        void malformedDueDateReportsLineAndColumnAndToken() throws IOException {
+                UUID projectId = UUID.randomUUID();
+                Files.writeString(tempDir.resolve("projects.csv"),
+                                "id,name,description\n" + projectId + ",Project,\n");
+                String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
+                                UUID.randomUUID() + "," + projectId + ",Title,Desc,MEDIUM,TODO,,31-02-2026,\n";
+                Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
 
-    @Test
-    void malformedTimestampInWorklogReportsLineAndColumnAndToken() throws IOException {
-        UUID projectId = UUID.randomUUID();
-        UUID taskId = UUID.randomUUID();
-        Files.writeString(tempDir.resolve("projects.csv"),
-                "id,name,description\n" + projectId + ",Project,\n");
-        Files.writeString(tempDir.resolve("tasks.csv"),
-                "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
-                        taskId + "," + projectId + ",Title,Desc,MEDIUM,IN_PROGRESS,,,\n");
-        Files.writeString(tempDir.resolve("worklogs.csv"),
-                "taskId,timestamp,durationMinutes,author,description\n" +
-                        taskId + ",not-a-timestamp,45,Author,\n");
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+                assertThatThrownBy(storage::load)
+                                .isInstanceOf(StorageException.class)
+                                .hasMessageContaining("Malformed value in tasks.csv")
+                                .hasMessageContaining("line 2")
+                                .hasMessageContaining("column 'dueDate'")
+                                .hasMessageContaining("31-02-2026");
+        }
 
-        CsvStorageManager storage = new CsvStorageManager(tempDir);
-        assertThatThrownBy(storage::load)
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("line 2")
-                .hasMessageContaining("column 'timestamp'")
-                .hasMessageContaining("not-a-timestamp");
-    }
+        @Test
+        void malformedEstimatedMinutesReportsLineAndColumnAndToken() throws IOException {
+                UUID projectId = UUID.randomUUID();
+                Files.writeString(tempDir.resolve("projects.csv"),
+                                "id,name,description\n" + projectId + ",Project,\n");
+                String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
+                                UUID.randomUUID() + "," + projectId + ",Title,Desc,MEDIUM,TODO,abc,,\n";
+                Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
 
-    @Test
-    void malformedDurationInWorklogReportsLineAndColumnAndToken() throws IOException {
-        UUID projectId = UUID.randomUUID();
-        UUID taskId = UUID.randomUUID();
-        Files.writeString(tempDir.resolve("projects.csv"),
-                "id,name,description\n" + projectId + ",Project,\n");
-        Files.writeString(tempDir.resolve("tasks.csv"),
-                "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
-                        taskId + "," + projectId + ",Title,Desc,MEDIUM,IN_PROGRESS,,,\n");
-        Files.writeString(tempDir.resolve("worklogs.csv"),
-                "taskId,timestamp,durationMinutes,author,description\n" +
-                        taskId + ",2026-10-21T14:30:00,NaN,Author,\n");
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+                assertThatThrownBy(storage::load)
+                                .isInstanceOf(StorageException.class)
+                                .hasMessageContaining("line 2")
+                                .hasMessageContaining("column 'estimatedMinutes'")
+                                .hasMessageContaining("abc");
+        }
 
-        CsvStorageManager storage = new CsvStorageManager(tempDir);
-        assertThatThrownBy(storage::load)
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("line 2")
-                .hasMessageContaining("column 'durationMinutes'")
-                .hasMessageContaining("NaN");
-    }
+        @Test
+        void malformedTimestampInWorklogReportsLineAndColumnAndToken() throws IOException {
+                UUID projectId = UUID.randomUUID();
+                UUID taskId = UUID.randomUUID();
+                Files.writeString(tempDir.resolve("projects.csv"),
+                                "id,name,description\n" + projectId + ",Project,\n");
+                Files.writeString(tempDir.resolve("tasks.csv"),
+                                "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
+                                                taskId + "," + projectId + ",Title,Desc,MEDIUM,IN_PROGRESS,,,\n");
+                Files.writeString(tempDir.resolve("worklogs.csv"),
+                                "taskId,timestamp,durationMinutes,author,description\n" +
+                                                taskId + ",not-a-timestamp,45,Author,\n");
 
-    @Test
-    void malformedPriorityReportsLineAndColumnAndToken() throws IOException {
-        UUID projectId = UUID.randomUUID();
-        Files.writeString(tempDir.resolve("projects.csv"),
-                "id,name,description\n" + projectId + ",Project,\n");
-        String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
-                UUID.randomUUID() + "," + projectId + ",Title,Desc,URGENT,TODO,,,\n";
-        Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+                assertThatThrownBy(storage::load)
+                                .isInstanceOf(StorageException.class)
+                                .hasMessageContaining("line 2")
+                                .hasMessageContaining("column 'timestamp'")
+                                .hasMessageContaining("not-a-timestamp");
+        }
 
-        CsvStorageManager storage = new CsvStorageManager(tempDir);
-        assertThatThrownBy(storage::load)
-                .isInstanceOf(StorageException.class)
-                .hasMessageContaining("line 2")
-                .hasMessageContaining("column 'priority'")
-                .hasMessageContaining("URGENT");
-    }
+        @Test
+        void malformedDurationInWorklogReportsLineAndColumnAndToken() throws IOException {
+                UUID projectId = UUID.randomUUID();
+                UUID taskId = UUID.randomUUID();
+                Files.writeString(tempDir.resolve("projects.csv"),
+                                "id,name,description\n" + projectId + ",Project,\n");
+                Files.writeString(tempDir.resolve("tasks.csv"),
+                                "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
+                                                taskId + "," + projectId + ",Title,Desc,MEDIUM,IN_PROGRESS,,,\n");
+                Files.writeString(tempDir.resolve("worklogs.csv"),
+                                "taskId,timestamp,durationMinutes,author,description\n" +
+                                                taskId + ",2026-10-21T14:30:00,NaN,Author,\n");
+
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+                assertThatThrownBy(storage::load)
+                                .isInstanceOf(StorageException.class)
+                                .hasMessageContaining("line 2")
+                                .hasMessageContaining("column 'durationMinutes'")
+                                .hasMessageContaining("NaN");
+        }
+
+        @Test
+        void malformedPriorityReportsLineAndColumnAndToken() throws IOException {
+                UUID projectId = UUID.randomUUID();
+                Files.writeString(tempDir.resolve("projects.csv"),
+                                "id,name,description\n" + projectId + ",Project,\n");
+                String taskCsv = "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
+                                UUID.randomUUID() + "," + projectId + ",Title,Desc,URGENT,TODO,,,\n";
+                Files.writeString(tempDir.resolve("tasks.csv"), taskCsv);
+
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+                assertThatThrownBy(storage::load)
+                                .isInstanceOf(StorageException.class)
+                                .hasMessageContaining("line 2")
+                                .hasMessageContaining("column 'priority'")
+                                .hasMessageContaining("URGENT");
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {
+                        "2026-10-21T25:30:00",
+                        "2026-10-21T10:60:00",
+                        "2026-10-21",
+                        "2026-10-21T10:30:00Z",
+                        "2026-02-30T10:30:00"
+        })
+        void rejectInvalidWorklogTimestamps(String timestamp) throws IOException {
+                UUID projectId = UUID.randomUUID();
+                UUID taskId = UUID.randomUUID();
+
+                Files.writeString(tempDir.resolve("projects.csv"),
+                                "id,name,description\n" + projectId + ",Project,\n");
+
+                Files.writeString(tempDir.resolve("tasks.csv"),
+                                "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
+                                                taskId + "," + projectId + ",Title,Desc,MEDIUM,IN_PROGRESS,,,\n");
+
+                Files.writeString(tempDir.resolve("worklogs.csv"),
+                                "taskId,timestamp,durationMinutes,author,description\n" +
+                                                taskId + "," + timestamp + ",45,Author,\n");
+                CsvStorageManager storage = new CsvStorageManager(tempDir);
+
+                assertThatThrownBy(storage::load)
+                                .isInstanceOf(StorageException.class)
+                                .hasMessageContaining("column 'timestamp'")
+                                .hasMessageContaining(timestamp);
+        }
 }
