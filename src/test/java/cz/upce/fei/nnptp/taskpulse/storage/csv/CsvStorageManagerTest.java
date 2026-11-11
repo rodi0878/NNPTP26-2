@@ -68,6 +68,8 @@ class CsvStorageManagerTest {
         assertThat(loadedWorklog.durationMinutes()).isEqualTo(45L);
         assertThat(loadedWorklog.author()).isEqualTo("Petr Novák");
         assertThat(loadedWorklog.description()).isEqualTo("Práce, testy \"hotovo\"");
+        assertThat(loadedWorklog.timestamp())
+        .isEqualTo(LocalDateTime.of(2026, 10, 21, 14, 30));
     }
 
     @Test
@@ -239,4 +241,36 @@ class CsvStorageManagerTest {
                 .hasMessageContaining("column 'priority'")
                 .hasMessageContaining("URGENT");
     }
+
+    @ParameterizedTest
+@ValueSource(strings = {
+        "2026-10-21T25:30:00",
+        "2026-10-21T10:60:00",
+        "2026-10-21",
+        "2026-10-21T10:30:00Z",
+        "2026-02-30T10:30:00"
+})
+void rejectInvalidWorklogTimestamps(String timestamp) throws IOException {
+    UUID projectId = UUID.randomUUID();
+    UUID taskId = UUID.randomUUID();
+
+    Files.writeString(tempDir.resolve("projects.csv"),
+            "id,name,description\n" + projectId + ",Project,\n");
+
+    Files.writeString(tempDir.resolve("tasks.csv"),
+            "id,projectId,title,description,priority,state,estimatedMinutes,dueDate,labels\n" +
+                    taskId + "," + projectId + ",Title,Desc,MEDIUM,IN_PROGRESS,,,\n");
+
+    Files.writeString(tempDir.resolve("worklogs.csv"),
+            "taskId,timestamp,durationMinutes,author,description\n" +
+                    taskId + "," + timestamp + ",45,Author,\n");
+
+    CsvStorageManager storage = new CsvStorageManager(tempDir);
+
+    assertThatThrownBy(storage::load)
+            .isInstanceOf(StorageException.class)
+            .hasMessageContaining("column 'timestamp'")
+            .hasMessageContaining(timestamp);
+        }
+
 }

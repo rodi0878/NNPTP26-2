@@ -130,6 +130,139 @@ class TaskServiceTest {
         assertThat(notOverdueResults).contains(dueTodayTask, futureTask);
     }
 
+	    @Test
+    void filterTasksByInclusiveDueDateRange() {
+        // Arrange
+        Project project = projectService.createProject("Test", "");
+
+        Task beforeRange = taskService.createTask(project.getId(), "Before", "",
+                Priority.MEDIUM, null, LocalDate.of(2026, 10, 9));
+
+        Task atStart = taskService.createTask(project.getId(), "Start", "", Priority.MEDIUM, null,
+                LocalDate.of(2026, 10, 10));
+
+        Task insideRange = taskService.createTask(project.getId(), "Inside", "", Priority.MEDIUM, null,
+                LocalDate.of(2026, 10, 15));
+
+        Task atEnd = taskService.createTask(project.getId(), "End", "", Priority.MEDIUM, null,
+                LocalDate.of(2026, 10, 20));
+
+        Task afterRange = taskService.createTask(project.getId(), "After", "", Priority.MEDIUM, null,
+                LocalDate.of(2026, 10, 21));
+
+        TaskQuery query = TaskQuery.builder().dueDateRange(
+                LocalDate.of(2026, 10, 10),
+                LocalDate.of(2026, 10, 20))
+                .build();
+
+        // ACT
+        List<Task> result = taskService.findTasks(query);
+
+        // ASSERT
+        assertThat(result).containsExactlyInAnyOrder(atStart, insideRange, atEnd);
+    }
+
+    @Test
+    void includesLeapDayInDueDateRange() {
+        // ARRANGE
+        Project project = projectService.createProject("TestLeapDay", "");
+
+        Task taskLeap = taskService.createTask(project.getId(), "Before", "",
+                Priority.MEDIUM, null, LocalDate.of(2024, 2, 29));
+        TaskQuery query = TaskQuery.builder().dueDateRange(LocalDate.of(2024, 2, 28), LocalDate.of(2024, 3, 1))
+                .build();
+
+        // ACT
+        List<Task> result = taskService.findTasks(query);
+        // ASSERT
+        assertThat(result).containsExactly(taskLeap);
+    }
+
+    @Test
+    void onlyFromDueDate() {
+        // ARRANGE
+        Project project = projectService.createProject("Test", "");
+
+        taskService.createTask(
+                project.getId(),
+                "Before",
+                "",
+                Priority.MEDIUM,
+                null,
+                LocalDate.of(2026, 10, 19));
+
+        Task atStart = taskService.createTask(
+                project.getId(), "Start", "",
+                Priority.MEDIUM, null, LocalDate.of(2026, 10, 20));
+
+        Task afterStart = taskService.createTask(
+                project.getId(), "After", "",
+                Priority.MEDIUM, null, LocalDate.of(2026, 10, 25));
+
+        TaskQuery query = TaskQuery.builder()
+                .dueDateRange(
+                        LocalDate.of(2026, 10, 20),
+                        null)
+                .build();
+
+        // ACT
+        List<Task> result = taskService.findTasks(query);
+
+        // ASSERT
+        assertThat(result).containsExactlyInAnyOrder(atStart, afterStart);
+    }
+
+    @Test
+    void onlyToDueDate() {
+        Project project = projectService.createProject("Test", "");
+
+        Task beforeEnd = taskService.createTask(
+                project.getId(), "Before", "",
+                Priority.MEDIUM, null, LocalDate.of(2026, 10, 19));
+
+        Task atEnd = taskService.createTask(
+                project.getId(), "End", "",
+                Priority.MEDIUM, null, LocalDate.of(2026, 10, 21));
+
+        taskService.createTask(
+                project.getId(), "After", "",
+                Priority.MEDIUM, null, LocalDate.of(2026, 10, 22));
+
+        TaskQuery query = TaskQuery.builder()
+                .dueDateRange(
+                        null, LocalDate.of(2026, 10, 21))
+                .build();
+
+        // ACT
+        List<Task> result = taskService.findTasks(query);
+
+        // ASSERT
+        assertThat(result).containsExactlyInAnyOrder(beforeEnd, atEnd);
+    }
+
+    @Test
+    void filtersUndatedTasksWhenDueDateRangeIsActive() {
+        Project project = projectService.createProject("Test", "");
+
+        Task taskInside = taskService.createTask(
+                project.getId(), "Inside", "",
+                Priority.MEDIUM, null, LocalDate.of(2026, 10, 21));
+
+        taskService.createTask(
+                project.getId(), "Undated", "",
+                Priority.MEDIUM, null, null);
+
+        TaskQuery query = TaskQuery.builder()
+                .dueDateRange(
+                        LocalDate.of(2026, 10, 20),
+                        LocalDate.of(2026, 10, 22))
+                .build();
+
+        List<Task> result = taskService.findTasks(query);
+
+        assertThat(result).containsExactly(taskInside);
+    }
+
     @Test
     void rejectInvertedDueDateRange() {
         LocalDate fromDate = LocalDate.of(2026, 10, 25);
