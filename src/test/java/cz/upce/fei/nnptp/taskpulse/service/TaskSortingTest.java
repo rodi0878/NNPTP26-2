@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -83,5 +84,62 @@ class TaskSortingTest {
         List<Task> sorted = taskService.findTasks(query);
 
         assertThat(sorted).containsExactly(critEarly, critLate, highEarly);
+    }
+    
+        @Test
+    void equalPrioritiesAreSortedById() {
+        assertTiesAreSortedById(TaskSortOrder.PRIORITY_DESC, null);
+    }
+
+    @Test
+    void equalDueDatesAreSortedById() {
+        assertTiesAreSortedById(
+                TaskSortOrder.DUE_DATE_ASC, LocalDate.of(2026, 11, 10));
+    }
+
+    @Test
+    void equalPrioritiesAndDueDatesAreSortedById() {
+        assertTiesAreSortedById(
+                TaskSortOrder.PRIORITY_DESC_THEN_DUE_DATE_ASC,
+                LocalDate.of(2026, 11, 10));
+    }
+
+    @Test
+    void missingDueDatesAreSortedById() {
+        assertTiesAreSortedById(TaskSortOrder.DUE_DATE_ASC, null);
+    }
+
+    @Test
+    void titleSortingStillTakesPrecedenceOverId() {
+        Task zebra = saveTask("00000000-0000-0000-0000-000000000001",
+                "Zebra", null);
+        Task alpha = saveTask("00000000-0000-0000-0000-000000000002",
+                "Alpha", null);
+
+        TaskQuery query = TaskQuery.builder()
+                .sortOrder(TaskSortOrder.TITLE_ASC)
+                .build();
+
+        assertThat(taskService.findTasks(query)).containsExactly(alpha, zebra);
+    }
+
+    private void assertTiesAreSortedById(TaskSortOrder order, LocalDate dueDate) {
+        Task alpha = saveTask("00000000-0000-0000-0000-000000000002",
+                "Alpha", dueDate);
+        Task zebra = saveTask("00000000-0000-0000-0000-000000000001",
+                "Zebra", dueDate);
+
+        TaskQuery query = TaskQuery.builder()
+                .sortOrder(order)
+                .build();
+
+        assertThat(taskService.findTasks(query)).containsExactly(zebra, alpha);
+    }
+
+    private Task saveTask(String id, String title, LocalDate dueDate) {
+        Task task = new Task(UUID.fromString(id), project.getId(), title);
+        task.setPriority(Priority.HIGH);
+        task.setDueDate(dueDate);
+        return taskRepository.save(task);
     }
 }

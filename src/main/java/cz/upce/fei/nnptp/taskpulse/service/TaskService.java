@@ -183,9 +183,10 @@ public class TaskService {
 
         return switch (sortOrder) {
             case TITLE_ASC -> titleAsc.thenComparing(idTieBreaker);
-            case PRIORITY_DESC -> priorityDesc.thenComparing(titleAsc).thenComparing(idTieBreaker);
-            case DUE_DATE_ASC -> dueDateAsc.thenComparing(titleAsc).thenComparing(idTieBreaker);
-            case PRIORITY_DESC_THEN_DUE_DATE_ASC -> priorityDesc.thenComparing(dueDateAsc).thenComparing(titleAsc).thenComparing(idTieBreaker);
+            case PRIORITY_DESC -> priorityDesc.thenComparing(idTieBreaker);
+            case DUE_DATE_ASC -> dueDateAsc.thenComparing(idTieBreaker);
+            case PRIORITY_DESC_THEN_DUE_DATE_ASC ->
+                    priorityDesc.thenComparing(dueDateAsc).thenComparing(idTieBreaker);
         };
     }
 }
