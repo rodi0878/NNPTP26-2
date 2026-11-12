@@ -115,6 +115,25 @@ class TaskPulseCliTest {
         assertThat(outContent.toString()).contains("transitioned to DONE");
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "--author --desc oprava, --author",
+            "--desc --author testautor, --desc",
+            "--author testautor --desc --author jinyautor, --desc"
+    })
+    void worklogRejectsOptionAsValueWithoutLoggingWork(String options, String missingValueOption) {
+        var project = projectService.createProject("Course", "");
+        Task task = taskService.createTask(project.getId(), "Review", "", Priority.MEDIUM, null, null);
+        taskService.transitionTask(task.getId(), TaskState.IN_PROGRESS);
+
+        cli.executeLine("worklog log " + task.getId() + " 30 " + options);
+
+        assertThat(errContent.toString()).contains("Invalid argument: Missing value for option " + missingValueOption);
+        assertThat(outContent.toString()).isEmpty();
+        assertThat(taskService.getTask(task.getId()).getWorklogs()).isEmpty();
+        assertThat(taskService.getTask(task.getId()).getTotalRecordedMinutes()).isZero();
+    }
+
     @Test
     void taskListWithoutSortOrdersByTitle() {
         UUID projectId = projectService.createProject("Course", "").getId();
