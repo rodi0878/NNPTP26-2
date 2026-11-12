@@ -7,6 +7,7 @@ import java.io.PrintStream;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Scanner;
@@ -68,7 +69,7 @@ public class TaskPulseCli {
             return true;
         }
 
-        String command = tokens.get(0).toLowerCase();
+        String command = tokens.get(0).toLowerCase(Locale.ROOT);
         if (command.equals("exit") || command.equals("quit")) {
             return false;
         }

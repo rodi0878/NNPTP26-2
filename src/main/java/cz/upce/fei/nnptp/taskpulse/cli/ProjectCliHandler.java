@@ -4,6 +4,7 @@ import cz.upce.fei.nnptp.taskpulse.domain.Project;
 import cz.upce.fei.nnptp.taskpulse.service.ProjectService;
 import java.io.PrintStream;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 final class ProjectCliHandler implements CliCommandHandler {
@@ -24,7 +25,7 @@ final class ProjectCliHandler implements CliCommandHandler {
             return;
         }
 
-        String action = args.get(0).toLowerCase();
+        String action = args.get(0).toLowerCase(Locale.ROOT);
         switch (action) {
             case "add" -> {
                 if (args.size() < 2) {
