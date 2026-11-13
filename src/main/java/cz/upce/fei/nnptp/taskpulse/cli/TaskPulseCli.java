@@ -2,6 +2,7 @@ package cz.upce.fei.nnptp.taskpulse.cli;
 
 import cz.upce.fei.nnptp.taskpulse.service.ProjectService;
 import cz.upce.fei.nnptp.taskpulse.service.TaskService;
+import cz.upce.fei.nnptp.taskpulse.storage.csv.WorkspaceBackup;
 
 import java.io.PrintStream;
 import java.time.Clock;
@@ -38,6 +39,12 @@ public class TaskPulseCli {
 
     public TaskPulseCli(ProjectService projectService, TaskService taskService) {
         this(projectService, taskService, System.out, System.err);
+    }
+
+    public TaskPulseCli(ProjectService projectService, TaskService taskService,
+                        WorkspaceBackup backup, PrintStream out, PrintStream err) {
+        this(projectService, taskService, out, err);
+        handlers.put("workspace", new WorkspaceCliHandler(backup, out));
     }
 
     public void runInteractive(Scanner scanner) {
@@ -111,6 +118,8 @@ public class TaskPulseCli {
         out.println("  worklog list <task-id>");
         out.println("  " + ReportCliHandler.USAGE);
         out.println("    Without --output, prints to the console. Existing files are never overwritten.");
+        out.println("  workspace export <archive.zip>");
+        out.println("  workspace import <archive.zip|csv-directory> (replaces current workspace)");
         out.println("  exit / quit");
     }
 
