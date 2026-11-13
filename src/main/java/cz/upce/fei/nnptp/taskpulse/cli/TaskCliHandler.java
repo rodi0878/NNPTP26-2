@@ -32,7 +32,7 @@ final class TaskCliHandler implements CliCommandHandler {
             return;
         }
 
-        String action = args.get(0).toLowerCase();
+        String action = args.get(0).toLowerCase(Locale.ROOT);
         switch (action) {
             case "add" -> {
                 if (args.size() < 3) {
@@ -129,7 +129,7 @@ final class TaskCliHandler implements CliCommandHandler {
                     err.println("Usage: task label <add|remove> <task-id> <label>");
                     return;
                 }
-                String sub = args.get(1).toLowerCase();
+                String sub = args.get(1).toLowerCase(Locale.ROOT);
                 UUID id = TaskPulseCli.parseUuid(args.get(2));
                 String label = args.get(3);
                 if ("add".equals(sub)) {
@@ -188,7 +188,7 @@ final class TaskCliHandler implements CliCommandHandler {
     }
 
     private TaskSortOrder parseSortOrder(String val) {
-        return switch (val.strip().toLowerCase()) {
+        return switch (val.strip().toLowerCase(Locale.ROOT)) {
             case "title" -> TaskSortOrder.TITLE_ASC;
             case "priority" -> TaskSortOrder.PRIORITY_DESC;
             case "duedate" -> TaskSortOrder.DUE_DATE_ASC;
