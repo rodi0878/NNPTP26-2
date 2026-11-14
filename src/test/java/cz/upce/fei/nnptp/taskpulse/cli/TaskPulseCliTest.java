@@ -201,6 +201,40 @@ class TaskPulseCliTest {
         assertThat(outContent.toString()).contains("TaskPulse CLI", "Available commands:");
     }
 
+    @Test
+    void taskDeleteWithoutConfirmationKeepsTask() {
+        UUID projectId = projectService.createProject("Course", "").getId();
+        Task task = taskService.createTask(projectId, "Keep me", "", Priority.MEDIUM, null, null);
+
+        cli.executeLine("task delete " + task.getId());
+
+        assertThat(taskService.listTasks()).containsExactly(task);
+        assertThat(errContent.toString()).contains("not confirmed", "--yes");
+        assertThat(outContent.toString()).doesNotContain("Task deleted");
+    }
+
+    @Test
+    void taskDeleteWithConfirmationRemovesTask() {
+        UUID projectId = projectService.createProject("Course", "").getId();
+        Task task = taskService.createTask(projectId, "Remove me", "", Priority.MEDIUM, null, null);
+
+        cli.executeLine("task delete " + task.getId() + " --yes");
+
+        assertThat(taskService.listTasks()).isEmpty();
+        assertThat(outContent.toString()).contains("Task deleted: " + task.getId());
+        assertThat(errContent.toString()).isEmpty();
+    }
+
+    @Test
+    void taskDeleteOfUnknownTaskReportsNotFound() {
+        UUID unknownId = UUID.randomUUID();
+
+        cli.executeLine("task delete " + unknownId);
+
+        assertThat(errContent.toString()).contains("Task not found", unknownId.toString())
+                .doesNotContain("not confirmed", "Exception");
+    }
+
     @ParameterizedTest
     @CsvSource(value = {
             "60, 60 min, -15 min",
