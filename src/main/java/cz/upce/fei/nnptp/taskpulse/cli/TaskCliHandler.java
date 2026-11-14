@@ -144,10 +144,16 @@ final class TaskCliHandler implements CliCommandHandler {
             }
             case "delete" -> {
                 if (args.size() < 2) {
-                    err.println("Usage: task delete <task-id>");
+                    err.println("Usage: task delete <task-id> --yes");
                     return;
                 }
                 UUID id = TaskPulseCli.parseUuid(args.get(1));
+                taskService.getTask(id);
+                CliOptions options = CliOptions.parse(args, 2);
+                if (!options.has("--yes")) {
+                    err.println("Deletion of task " + id + " was not confirmed. Re-run with --yes to delete it.");
+                    return;
+                }
                 taskService.deleteTask(id);
                 out.println("Task deleted: " + id);
             }

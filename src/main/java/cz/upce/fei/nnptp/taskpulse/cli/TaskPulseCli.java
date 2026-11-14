@@ -106,7 +106,7 @@ public class TaskPulseCli {
         out.println("  task transition <task-id> <state>");
         out.println("  task label add <task-id> <label>");
         out.println("  task label remove <task-id> <label>");
-        out.println("  task delete <task-id>");
+        out.println("  task delete <task-id> --yes");
         out.println("  worklog log <task-id> <durationMinutes> --author <author> [--desc <description>]");
         out.println("  worklog list <task-id>");
         out.println("  " + ReportCliHandler.USAGE);
