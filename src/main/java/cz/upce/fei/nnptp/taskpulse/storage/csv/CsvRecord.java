@@ -26,7 +26,7 @@ final class CsvRecord {
             throw new StorageException("Empty record in " + fileName + " at line " + lineNumber
                     + ": the row contains only delimiters and no values; remove the line or fill in its fields");
         }
-        if (this.values.size() < this.columns.size()) {
+        if (this.values.size() != this.columns.size()) {
             throw new StorageException("Malformed row in " + fileName + " at line " + lineNumber);
         }
     }

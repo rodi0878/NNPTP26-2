@@ -2,6 +2,8 @@ package cz.upce.fei.nnptp.taskpulse.storage.csv;
 
 import cz.upce.fei.nnptp.taskpulse.storage.StorageException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 
@@ -23,6 +25,14 @@ class CsvRecordTest {
     @Test
     void rejectsRowWithMissingColumns() {
         assertThatThrownBy(() -> new CsvRecord("items.csv", COLUMNS, List.of("only-name"), 3))
+                .isInstanceOf(StorageException.class)
+                .hasMessage("Malformed row in items.csv at line 3");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"extra", ""})
+    void rejectsRowWithExtraColumns(String extraValue) {
+        assertThatThrownBy(() -> new CsvRecord("items.csv", COLUMNS, List.of("apple", "5", extraValue), 3))
                 .isInstanceOf(StorageException.class)
                 .hasMessage("Malformed row in items.csv at line 3");
     }

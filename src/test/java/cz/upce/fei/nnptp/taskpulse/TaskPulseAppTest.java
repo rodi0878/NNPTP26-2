@@ -3,15 +3,19 @@ package cz.upce.fei.nnptp.taskpulse;
 import cz.upce.fei.nnptp.taskpulse.domain.Project;
 import cz.upce.fei.nnptp.taskpulse.domain.Task;
 import cz.upce.fei.nnptp.taskpulse.domain.Worklog;
+import cz.upce.fei.nnptp.taskpulse.storage.StorageException;
 import cz.upce.fei.nnptp.taskpulse.storage.csv.CsvStorageManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TaskPulseAppTest {
 
@@ -53,6 +57,19 @@ class TaskPulseAppTest {
         Worklog worklog = onlyTask().getWorklogs().get(0);
         assertThat(worklog.author()).isEqualTo("Student Developer");
         assertThat(worklog.description()).isEqualTo("First pass");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"extra", ""})
+    void oneShotRejectsExtraCsvColumnsWithoutChangingFile(String extraValue) throws IOException {
+        Path csv = dataDir.resolve("projects.csv");
+        String contents = "id,name,description\n11111111-1111-1111-1111-111111111111,Project,Description," + extraValue + "\n";
+        Files.writeString(csv, contents);
+
+        assertThatThrownBy(() -> TaskPulseApp.run(new String[]{"project", "list"}, dataDir))
+                .isInstanceOf(StorageException.class)
+                .hasMessageContaining("Malformed row in projects.csv at line 2");
+        assertThat(Files.readString(csv)).isEqualTo(contents);
     }
 
     private Project onlyProject() {
