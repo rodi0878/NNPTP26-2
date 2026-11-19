@@ -76,18 +76,18 @@ class ProjectCliHandlerTest {
     @Test
     void editCanReplaceNameAndKeepDescription() {
         var project = service.createProject("Old", "Old description");
-        handler.handle(List.of("EDIT", project.getId().toString(), "New"));
+        String confirmation = handler.handle(List.of("EDIT", project.getId().toString(), "New"));
         assertThat(service.getProject(project.getId()).getName()).isEqualTo("New");
         assertThat(service.getProject(project.getId()).getDescription()).isEqualTo("Old description");
-        assertThat(stdout.toString(StandardCharsets.UTF_8)).contains("Project updated:");
+        assertThat(confirmation).contains("Project updated:");
     }
 
     @Test
     void deleteRemovesExistingProject() {
         var project = service.createProject("Temporary", "");
-        handler.handle(List.of("delete", project.getId().toString()));
+        String confirmation = handler.handle(List.of("delete", project.getId().toString()));
         assertThat(service.listProjects()).isEmpty();
-        assertThat(stdout.toString(StandardCharsets.UTF_8)).contains("Project deleted: " + project.getId());
+        assertThat(confirmation).isEqualTo("Project deleted: " + project.getId());
     }
 
     @Test

@@ -29,11 +29,11 @@ workspace import "backup.zip"
 workspace import "external-csv-directory"
 ```
 
-Export writes a compressed ZIP snapshot of the current session, including unsaved
-changes. The destination must not already exist; its parent directory must exist.
+Export writes a compressed ZIP snapshot of the current session.
+The destination must not already exist; its parent directory must exist.
 Import **replaces the entire current workspace**, rather than merging records.
-Back up your current workspace first. Imported changes are saved to `.taskpulse`
-when the application exits, like other commands.
+Back up your current workspace first. TaskPulse saves each change to `.taskpulse`
+before printing its confirmation, including changes made by an import.
 
 A bundle must contain `projects.csv`, `tasks.csv`, and `worklogs.csv` at its root,
 using the same UTF-8 headers and column order as TaskPulse's CSV storage. Include

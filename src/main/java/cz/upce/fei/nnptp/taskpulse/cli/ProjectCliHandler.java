@@ -19,10 +19,10 @@ final class ProjectCliHandler implements CliCommandHandler {
     }
 
     @Override
-    public void handle(List<String> args) {
+    public String handle(List<String> args) {
         if (args.isEmpty()) {
             err.println("Usage: project <add|list|show|edit|delete> [arguments]");
-            return;
+            return null;
         }
 
         String action = args.get(0).toLowerCase(Locale.ROOT);
@@ -30,12 +30,12 @@ final class ProjectCliHandler implements CliCommandHandler {
             case "add" -> {
                 if (args.size() < 2) {
                     err.println("Usage: project add <name> [description]");
-                    return;
+                    return null;
                 }
                 String name = args.get(1);
                 String desc = args.size() > 2 ? args.get(2) : "";
                 Project project = projectService.createProject(name, desc);
-                out.println("Project created: " + project.getId() + " - " + project.getName());
+                return "Project created: " + project.getId() + " - " + project.getName();
             }
             case "list" -> {
                 List<Project> projects = projectService.listProjects();
@@ -50,7 +50,7 @@ final class ProjectCliHandler implements CliCommandHandler {
             case "show" -> {
                 if (args.size() < 2) {
                     err.println("Usage: project show <project-id>");
-                    return;
+                    return null;
                 }
                 UUID id = TaskPulseCli.parseUuid(args.get(1));
                 Project p = projectService.getProject(id);
@@ -61,25 +61,26 @@ final class ProjectCliHandler implements CliCommandHandler {
             case "edit" -> {
                 if (args.size() < 3) {
                     err.println("Usage: project edit <project-id> <name> [description]");
-                    return;
+                    return null;
                 }
                 UUID id = TaskPulseCli.parseUuid(args.get(1));
                 String name = args.get(2);
                 String desc = args.size() > 3 ? args.get(3) : projectService.getProject(id).getDescription();
                 Project p = projectService.updateProject(id, name, desc);
-                out.println("Project updated: " + p.getId() + " - " + p.getName());
+                return "Project updated: " + p.getId() + " - " + p.getName();
             }
             case "delete" -> {
                 if (args.size() < 2) {
                     err.println("Usage: project delete <project-id>");
-                    return;
+                    return null;
                 }
                 UUID id = TaskPulseCli.parseUuid(args.get(1));
                 projectService.deleteProject(id);
-                out.println("Project deleted: " + id);
+                return "Project deleted: " + id;
             }
             
             default -> err.println("Unknown project action: '" + action + "'");
         }
+        return null;
     }
 }

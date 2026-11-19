@@ -3,20 +3,66 @@ package cz.upce.fei.nnptp.taskpulse;
 import cz.upce.fei.nnptp.taskpulse.domain.Project;
 import cz.upce.fei.nnptp.taskpulse.domain.Task;
 import cz.upce.fei.nnptp.taskpulse.domain.Worklog;
+import cz.upce.fei.nnptp.taskpulse.storage.StorageException;
 import cz.upce.fei.nnptp.taskpulse.storage.csv.CsvStorageManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TaskPulseAppTest {
 
     @TempDir
     Path dataDir;
+
+    @Test
+    void interactiveProjectIsOnDiskWhenCreationIsReported() {
+        var confirmedProjects = new ArrayList<String>();
+        var input = new ByteArrayInputStream("project add Exams\nexit\n".getBytes(StandardCharsets.UTF_8));
+        try (var output = new PrintStream(OutputStream.nullOutputStream()) {
+            @Override
+            public void println(String line) {
+                if (line.startsWith("Project created:")) {
+                    confirmedProjects.add(onlyProject().getName());
+                }
+            }
+        }) {
+            TaskPulseApp.run(new String[0], dataDir, input, output, System.err);
+        }
+        assertThat(confirmedProjects).containsExactly("Exams");
+    }
+
+    @Test
+    void listingProjectsDoesNotCreateWorkspaceFiles() {
+        Path workspace = dataDir.resolve("empty");
+        TaskPulseApp.run(new String[]{"project", "list"}, workspace);
+        assertThat(workspace).doesNotExist();
+    }
+
+    @Test
+    void failedSaveDoesNotConfirmProjectCreation() throws Exception {
+        Path blocked = Files.createFile(dataDir.resolve("file"));
+        var messages = new ByteArrayOutputStream();
+        try (var output = new PrintStream(messages)) {
+            String[] args = {"project", "add", "Exams"};
+            assertThatThrownBy(() -> TaskPulseApp.run(args, blocked, InputStream.nullInputStream(), output, System.err))
+                    .isInstanceOf(StorageException.class).hasMessageContaining("Failed to save workspace");
+        }
+        assertThat(messages.size()).isZero();
+    }
 
     @ParameterizedTest
     @ValueSource(strings = {"Programming course", "Fix \"Save as\" dialog", "C:\\Program Files\\new"})

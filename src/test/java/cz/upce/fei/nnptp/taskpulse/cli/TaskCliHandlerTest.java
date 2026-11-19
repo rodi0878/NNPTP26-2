@@ -57,12 +57,12 @@ class TaskCliHandlerTest {
 
     @Test
     void addDefaultsToMediumPriorityAndEmptyDescription() {
-        handler.handle(List.of("ADD", projectId.toString(), "Implement"));
+        String confirmation = handler.handle(List.of("ADD", projectId.toString(), "Implement"));
         var task = tasks.listTasks().get(0);
         assertThat(task.getTitle()).isEqualTo("Implement");
         assertThat(task.getDescription()).isEmpty();
         assertThat(task.getPriority()).isEqualTo(Priority.MEDIUM);
-        assertThat(stdout.toString(StandardCharsets.UTF_8)).contains("Task created:");
+        assertThat(confirmation).contains("Task created:");
     }
 
     @Test
@@ -156,11 +156,12 @@ class TaskCliHandlerTest {
     @Test
     void labelsCanBeAddedAndRemoved() {
         var task = tasks.createTask(projectId, "Review", "", Priority.MEDIUM, null, null);
-        handler.handle(List.of("label", "ADD", task.getId().toString(), "backend"));
+        String added = handler.handle(List.of("label", "ADD", task.getId().toString(), "backend"));
         assertThat(tasks.getTask(task.getId()).getLabels()).contains("backend");
-        handler.handle(List.of("label", "remove", task.getId().toString(), "backend"));
+        String removed = handler.handle(List.of("label", "remove", task.getId().toString(), "backend"));
         assertThat(tasks.getTask(task.getId()).getLabels()).doesNotContain("backend");
-        assertThat(stdout.toString(StandardCharsets.UTF_8)).contains("Label 'backend' added", "Label 'backend' removed");
+        assertThat(added).contains("Label 'backend' added");
+        assertThat(removed).contains("Label 'backend' removed");
     }
 
     @Test
@@ -185,8 +186,8 @@ class TaskCliHandlerTest {
     @Test
     void deletionRemovesTask() {
         var task = tasks.createTask(projectId, "Temporary", "", Priority.MEDIUM, null, null);
-        handler.handle(List.of("delete", task.getId().toString()));
+        String confirmation = handler.handle(List.of("delete", task.getId().toString()));
         assertThat(tasks.listTasks()).isEmpty();
-        assertThat(stdout.toString(StandardCharsets.UTF_8)).contains("Task deleted: " + task.getId());
+        assertThat(confirmation).isEqualTo("Task deleted: " + task.getId());
     }
 }

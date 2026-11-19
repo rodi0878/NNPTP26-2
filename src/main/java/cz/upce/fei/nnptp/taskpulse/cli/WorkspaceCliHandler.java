@@ -20,7 +20,7 @@ final class WorkspaceCliHandler implements CliCommandHandler {
     }
 
     @Override
-    public void handle(List<String> args) {
+    public String handle(List<String> args) {
         if (args.size() != 2 || args.get(1).isBlank()) {
             throw new IllegalArgumentException("Usage: " + USAGE);
         }
@@ -36,8 +36,9 @@ final class WorkspaceCliHandler implements CliCommandHandler {
             }
             case "import" -> {
                 backup.importBundle(path);
-                out.println("Workspace imported: " + path);
+                return "Workspace imported: " + path;
             }
         }
+        return null;
     }
 }

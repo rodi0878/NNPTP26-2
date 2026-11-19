@@ -20,10 +20,10 @@ final class WorklogCliHandler implements CliCommandHandler {
     }
 
     @Override
-    public void handle(List<String> args) {
+    public String handle(List<String> args) {
         if (args.isEmpty()) {
             err.println("Usage: worklog <log|list> [arguments]");
-            return;
+            return null;
         }
 
         String action = args.get(0).toLowerCase(Locale.ROOT);
@@ -31,7 +31,7 @@ final class WorklogCliHandler implements CliCommandHandler {
             case "log" -> {
                 if (args.size() < 3) {
                     err.println("Usage: worklog log <task-id> <durationMinutes> --author <author> [--desc <description>]");
-                    return;
+                    return null;
                 }
                 UUID taskId = TaskPulseCli.parseUuid(args.get(1));
                 long duration;
@@ -45,15 +45,15 @@ final class WorklogCliHandler implements CliCommandHandler {
                 String desc = options.getOrDefault("--desc", "");
                 if (author == null) {
                     err.println("Missing required --author argument");
-                    return;
+                    return null;
                 }
                 Worklog worklog = taskService.logWork(taskId, duration, author, desc);
-                out.println("Work logged: " + worklog.durationMinutes() + " min by " + worklog.author() + " on task " + taskId);
+                return "Work logged: " + worklog.durationMinutes() + " min by " + worklog.author() + " on task " + taskId;
             }
             case "list" -> {
                 if (args.size() < 2) {
                     err.println("Usage: worklog list <task-id>");
-                    return;
+                    return null;
                 }
                 UUID taskId = TaskPulseCli.parseUuid(args.get(1));
                 Task task = taskService.getTask(taskId);
@@ -69,5 +69,6 @@ final class WorklogCliHandler implements CliCommandHandler {
             
             default -> err.println("Unknown worklog action: '" + action + "'");
         }
+        return null;
     }
 }

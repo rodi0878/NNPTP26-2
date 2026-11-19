@@ -42,7 +42,7 @@ final class ReportCliHandler implements CliCommandHandler {
     }
 
     @Override
-    public void handle(List<String> args) {
+    public String handle(List<String> args) {
         if (args.size() < 2 || !"export".equalsIgnoreCase(args.get(0))) {
             throw new IllegalArgumentException("Usage: " + USAGE);
         }
@@ -84,7 +84,7 @@ final class ReportCliHandler implements CliCommandHandler {
 
         if (output == null) {
             out.print(report);
-            return;
+            return null;
         }
 
         try {
@@ -96,6 +96,7 @@ final class ReportCliHandler implements CliCommandHandler {
         } catch (IOException e) {
             err.println("Error: Cannot write report to " + output + ": " + e.getMessage());
         }
+        return null;
     }
 
     private static ReportExporter resolveExporter(String format) {

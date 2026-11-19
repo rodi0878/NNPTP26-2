@@ -19,6 +19,7 @@ public class TaskPulseCli {
     private final PrintStream out;
     private final PrintStream err;
     private final CliErrorHandler errorHandler;
+    private final Runnable saveWorkspace;
 
     public TaskPulseCli(ProjectService projectService, TaskService taskService, PrintStream out, PrintStream err) {
         this(projectService, taskService, out, err, Clock.systemDefaultZone());
@@ -26,12 +27,18 @@ public class TaskPulseCli {
 
     public TaskPulseCli(ProjectService projectService, TaskService taskService, PrintStream out, PrintStream err,
                         Clock clock) {
+        this(projectService, taskService, out, err, clock, () -> {});
+    }
+
+    private TaskPulseCli(ProjectService projectService, TaskService taskService, PrintStream out, PrintStream err,
+                         Clock clock, Runnable saveWorkspace) {
         Objects.requireNonNull(projectService, "ProjectService must not be null");
         Objects.requireNonNull(taskService, "TaskService must not be null");
         Objects.requireNonNull(clock, "Clock must not be null");
         this.out = Objects.requireNonNull(out, "out must not be null");
         this.err = Objects.requireNonNull(err, "err must not be null");
         this.errorHandler = new CliErrorHandler(this.err);
+        this.saveWorkspace = Objects.requireNonNull(saveWorkspace);
         handlers.put("project", new ProjectCliHandler(projectService, out, err));
         handlers.put("task", new TaskCliHandler(taskService, out, err));
         handlers.put("worklog", new WorklogCliHandler(taskService, out, err));
@@ -44,7 +51,12 @@ public class TaskPulseCli {
 
     public TaskPulseCli(ProjectService projectService, TaskService taskService,
                         WorkspaceBackup backup, PrintStream out, PrintStream err) {
-        this(projectService, taskService, out, err);
+        this(projectService, taskService, backup, out, err, () -> {});
+    }
+
+    public TaskPulseCli(ProjectService projectService, TaskService taskService,
+                        WorkspaceBackup backup, PrintStream out, PrintStream err, Runnable saveWorkspace) {
+        this(projectService, taskService, out, err, Clock.systemDefaultZone(), saveWorkspace);
         handlers.put("workspace", new WorkspaceCliHandler(backup, out));
     }
 
@@ -81,6 +93,7 @@ public class TaskPulseCli {
             return false;
         }
 
+        String confirmation = null;
         try {
             switch (command) {
                 case "help" -> printHelp();
@@ -89,12 +102,16 @@ public class TaskPulseCli {
                     if (handler == null) {
                         err.println("Unknown command: '" + command + "'. Type 'help' for available commands.");
                     } else {
-                        handler.handle(tokens.subList(1, tokens.size()));
+                        confirmation = handler.handle(tokens.subList(1, tokens.size()));
                     }
                 }
             }
         } catch (Exception e) {
             errorHandler.handle(e);
+        }
+        if (confirmation != null) {
+            saveWorkspace.run();
+            out.println(confirmation);
         }
         return true;
     }

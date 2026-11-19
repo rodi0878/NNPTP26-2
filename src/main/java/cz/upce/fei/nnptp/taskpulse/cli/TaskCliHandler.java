@@ -26,10 +26,10 @@ final class TaskCliHandler implements CliCommandHandler {
     }
 
     @Override
-    public void handle(List<String> args) {
+    public String handle(List<String> args) {
         if (args.isEmpty()) {
             err.println("Usage: task <add|update|list|show|transition|label|delete> [arguments]");
-            return;
+            return null;
         }
 
         String action = args.get(0).toLowerCase(Locale.ROOT);
@@ -37,7 +37,7 @@ final class TaskCliHandler implements CliCommandHandler {
             case "add" -> {
                 if (args.size() < 3) {
                     err.println("Usage: task add <project-id> <title> [description] [--priority <priority>] [--estimate <minutes>] [--due <YYYY-MM-DD>]");
-                    return;
+                    return null;
                 }
                 UUID projectId = TaskPulseCli.parseUuid(args.get(1));
                 String title = args.get(2);
@@ -59,12 +59,12 @@ final class TaskCliHandler implements CliCommandHandler {
                     }
                 }
                 Task task = taskService.createTask(projectId, title, desc, priority, estimate, dueDate);
-                out.println("Task created: " + task.getId() + " - " + task.getTitle());
+                return "Task created: " + task.getId() + " - " + task.getTitle();
             }
             case "update" -> {
                 if (args.size() < 4) {
                     err.println("Usage: task update <task-id> <--title|--description|--priority|--estimate|--due> <value> [...]");
-                    return;
+                    return null;
                 }
                 UUID id = TaskPulseCli.parseUuid(args.get(1));
                 Task existing = taskService.getTask(id);
@@ -92,7 +92,7 @@ final class TaskCliHandler implements CliCommandHandler {
                     }
                 }
                 Task updated = taskService.updateTask(id, title, description, priority, estimate, dueDate);
-                out.println("Task updated: " + updated.getId() + " - " + updated.getTitle());
+                return "Task updated: " + updated.getId() + " - " + updated.getTitle();
             }
             case "list" -> {
                 CliOptions options = CliOptions.parse(args, 1);
@@ -146,7 +146,7 @@ final class TaskCliHandler implements CliCommandHandler {
             case "show" -> {
                 if (args.size() < 2) {
                     err.println("Usage: task show <task-id>");
-                    return;
+                    return null;
                 }
                 UUID id = TaskPulseCli.parseUuid(args.get(1));
                 Task t = taskService.getTask(id);
@@ -166,27 +166,27 @@ final class TaskCliHandler implements CliCommandHandler {
             case "transition" -> {
                 if (args.size() < 3) {
                     err.println("Usage: task transition <task-id> <state>");
-                    return;
+                    return null;
                 }
                 UUID id = TaskPulseCli.parseUuid(args.get(1));
                 TaskState nextState = parseState(args.get(2));
                 Task t = taskService.transitionTask(id, nextState);
-                out.println("Task " + t.getId() + " transitioned to " + t.getState());
+                return "Task " + t.getId() + " transitioned to " + t.getState();
             }
             case "label" -> {
                 if (args.size() < 4) {
                     err.println("Usage: task label <add|remove> <task-id> <label>");
-                    return;
+                    return null;
                 }
                 String sub = args.get(1).toLowerCase(Locale.ROOT);
                 UUID id = TaskPulseCli.parseUuid(args.get(2));
                 String label = args.get(3);
                 if ("add".equals(sub)) {
                     taskService.addLabel(id, label);
-                    out.println("Label '" + label + "' added to task " + id);
+                    return "Label '" + label + "' added to task " + id;
                 } else if ("remove".equals(sub)) {
                     taskService.removeLabel(id, label);
-                    out.println("Label '" + label + "' removed from task " + id);
+                    return "Label '" + label + "' removed from task " + id;
                 } else {
                     err.println("Unknown label action: " + sub);
                 }
@@ -194,15 +194,16 @@ final class TaskCliHandler implements CliCommandHandler {
             case "delete" -> {
                 if (args.size() < 2) {
                     err.println("Usage: task delete <task-id>");
-                    return;
+                    return null;
                 }
                 UUID id = TaskPulseCli.parseUuid(args.get(1));
                 taskService.deleteTask(id);
-                out.println("Task deleted: " + id);
+                return "Task deleted: " + id;
             }
             
             default -> err.println("Unknown task action: '" + action + "'");
         }
+        return null;
     }
 
     private long parseVarianceThreshold(String value) {

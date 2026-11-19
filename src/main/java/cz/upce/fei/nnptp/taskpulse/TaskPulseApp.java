@@ -10,10 +10,12 @@ import cz.upce.fei.nnptp.taskpulse.service.TaskService;
 import cz.upce.fei.nnptp.taskpulse.storage.InMemoryProjectRepository;
 import cz.upce.fei.nnptp.taskpulse.storage.InMemoryTaskRepository;
 import cz.upce.fei.nnptp.taskpulse.storage.ProjectRepository;
+import cz.upce.fei.nnptp.taskpulse.storage.StorageException;
 import cz.upce.fei.nnptp.taskpulse.storage.TaskRepository;
 import cz.upce.fei.nnptp.taskpulse.storage.csv.CsvStorageManager;
 import cz.upce.fei.nnptp.taskpulse.storage.csv.WorkspaceBackup;
 
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,10 +25,19 @@ import java.util.Scanner;
 
 public class TaskPulseApp {
     public static void main(String[] args) {
-        run(args, Paths.get(".taskpulse"));
+        try {
+            run(args, Paths.get(".taskpulse"));
+        } catch (StorageException e) {
+            System.err.println("Error: " + e.getMessage());
+            System.exit(1);
+        }
     }
 
     static void run(String[] args, Path dataDir) {
+        run(args, dataDir, System.in, System.out, System.err);
+    }
+
+    static void run(String[] args, Path dataDir, InputStream input, PrintStream out, PrintStream err) {
         CsvStorageManager storageManager = new CsvStorageManager(dataDir);
         CsvStorageManager.LoadedWorkspace workspace = storageManager.load();
 
@@ -37,20 +48,18 @@ public class TaskPulseApp {
         TaskService taskService = new TaskService(taskRepository, projectRepository);
 
         if (args.length > 0 && "--demo".equalsIgnoreCase(args[0])) {
-            runDemo(projectService, taskService, System.out);
+            runDemo(projectService, taskService, out);
             return;
         }
 
         TaskPulseCli cli = new TaskPulseCli(projectService, taskService,
                 new WorkspaceBackup(projectRepository, taskRepository),
-                System.out, System.err);
+                out, err, () -> storageManager.save(projectRepository, taskRepository));
         if (args.length > 0) {
             cli.executeTokens(List.of(args));
-            storageManager.save(projectRepository, taskRepository);
         } else {
-            Scanner scanner = new Scanner(System.in);
+            Scanner scanner = new Scanner(input);
             cli.runInteractive(scanner);
-            storageManager.save(projectRepository, taskRepository);
         }
     }
 
