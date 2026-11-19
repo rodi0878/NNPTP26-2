@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Set;
 
 final class CliOptions {
-    private static final Set<String> FLAGS = Set.of("--overdue", "--exceeded");
+    private static final Set<String> FLAGS = Set.of("--overdue", "--exceeded", "--yes");
     private static final Set<String> VALUE_OPTIONS = Set.of(
             "--project", "--state", "--priority", "--label",
             "--search", "--sort", "--from", "--to",
