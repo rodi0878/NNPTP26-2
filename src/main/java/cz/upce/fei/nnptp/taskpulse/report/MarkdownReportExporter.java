@@ -123,6 +123,12 @@ public final class MarkdownReportExporter implements ReportExporter {
      * and newlines from breaking the table structure.
      */
     static String escapeCell(String value) {
+        return escapeInline(value)
+                .replace("\\", "\\\\")
+                .replace("|", "\\|");
+    }
+
+    static String escapeInline(String value) {
         if (value == null || value.isEmpty()) {
             return "";
         }
@@ -130,17 +136,8 @@ public final class MarkdownReportExporter implements ReportExporter {
                 .replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
-                .replace("\\", "\\\\")
-                .replace("|", "\\|")
                 .replace("\r\n", " ")
                 .replace('\n', ' ')
                 .replace('\r', ' ');
-    }
-
-    static String escapeInline(String value) {
-        if (value == null || value.isEmpty()) {
-            return "";
-        }
-        return value.replace("\r\n", " ").replace('\n', ' ').replace('\r', ' ');
     }
 }
