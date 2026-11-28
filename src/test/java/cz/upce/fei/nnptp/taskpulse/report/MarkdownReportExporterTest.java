@@ -154,6 +154,17 @@ class MarkdownReportExporterTest {
     }
 
     @Test
+    void preservesLiteralHtmlInProjectNameAndDescription() {
+        Project project = new Project("Fix <em>layout</em>", "Document &lt; and <br>");
+
+        String report = exporter.export(project, List.of(), asOfDate);
+
+        assertThat(report.lines()).contains(
+                "# Project Summary: Fix &lt;em&gt;layout&lt;/em&gt;",
+                "- **Description:** Document &amp;lt; and &lt;br&gt;");
+    }
+
+    @Test
     void exportDoesNotMutateProjectOrTasks() {
         UUID projectId = UUID.randomUUID();
         Project project = new Project(projectId, "Stable", "unchanged");
