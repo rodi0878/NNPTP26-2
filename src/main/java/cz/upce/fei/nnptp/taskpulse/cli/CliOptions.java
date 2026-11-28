@@ -27,17 +27,21 @@ final class CliOptions {
             String name = (equalsIndex < 0 ? argument : argument.substring(0, equalsIndex))
                     .toLowerCase(Locale.ROOT);
             if (!name.startsWith("--")) {
-                continue;
+                throw new IllegalArgumentException("Unexpected argument: " + argument);
             }
             boolean optionalValue = OPTIONAL_VALUE_OPTIONS.contains(name);
             if (!REQUIRED_VALUE_OPTIONS.contains(name) && !FLAGS.contains(name) && !optionalValue) {
                 throw new IllegalArgumentException("Unknown option: " + name);
             }
+            if (options.values.containsKey(name)) {
+                throw new IllegalArgumentException("Duplicate option: " + name);
+            }
 
             if (FLAGS.contains(name)) {
-                if (equalsIndex < 0) {
-                    options.values.put(name, "");
+                if (equalsIndex >= 0) {
+                    throw new IllegalArgumentException("Option " + name + " does not accept a value");
                 }
+                options.values.put(name, "");
             } else if (equalsIndex >= 0) {
                 options.values.put(name, argument.substring(equalsIndex + 1));
             } else if (i + 1 < args.size() && !args.get(i + 1).startsWith("--")) {
