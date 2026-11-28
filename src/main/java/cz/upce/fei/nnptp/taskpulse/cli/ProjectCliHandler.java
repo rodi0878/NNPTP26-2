@@ -6,14 +6,17 @@ import java.io.PrintStream;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 final class ProjectCliHandler implements CliCommandHandler {
     private final ProjectService projectService;
+    private final Supplier<String> input;
     private final PrintStream out;
     private final PrintStream err;
 
-    ProjectCliHandler(ProjectService projectService, PrintStream out, PrintStream err) {
+    ProjectCliHandler(ProjectService projectService, Supplier<String> input, PrintStream out, PrintStream err) {
         this.projectService = projectService;
+        this.input = input;
         this.out = out;
         this.err = err;
     }
@@ -71,15 +74,31 @@ final class ProjectCliHandler implements CliCommandHandler {
             }
             case "delete" -> {
                 if (args.size() < 2) {
-                    err.println("Usage: project delete <project-id>");
+                    err.println("Usage: project delete <project-id> [--yes]");
                     return;
                 }
                 UUID id = TaskPulseCli.parseUuid(args.get(1));
+                if (args.size() > 3 || (args.size() == 3 && !"--yes".equalsIgnoreCase(args.get(2)))) {
+                    err.println("Usage: project delete <project-id> [--yes]");
+                    return;
+                }
+                Project project = projectService.getProject(id);
+                if (args.size() != 3 && !confirmDeletion(project)) {
+                    out.println("Deletion cancelled.");
+                    return;
+                }
                 projectService.deleteProject(id);
                 out.println("Project deleted: " + id);
             }
             
             default -> err.println("Unknown project action: '" + action + "'");
         }
+    }
+
+    private boolean confirmDeletion(Project project) {
+        out.print("Delete project " + project.getId() + " - " + project.getName() + "? [y/N]: ");
+        out.flush();
+        String answer = input.get();
+        return answer != null && answer.strip().equalsIgnoreCase("y");
     }
 }

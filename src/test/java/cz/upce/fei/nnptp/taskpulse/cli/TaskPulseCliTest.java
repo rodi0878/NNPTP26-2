@@ -539,6 +539,41 @@ class TaskPulseCliTest {
         assertThat(outContent.toString()).doesNotContain("[y/N]");
     }
 
+    @Test
+    void projectDeleteAsksForConfirmationAndDeletesOnYes() {
+        Project project = projectService.createProject("Temporary", "");
+
+        cli.runInteractive(new Scanner("project delete " + project.getId() + "\ny\nexit\n"));
+
+        assertThat(outContent.toString()).contains("Temporary", "[y/N]", "Project deleted: " + project.getId());
+        assertThat(projectService.listProjects()).isEmpty();
+        assertThat(errContent.toString()).isEmpty();
+    }
+
+    @Test
+    void projectDeleteIsCancelledUnlessConfirmed() {
+        Project project = projectService.createProject("Keep me", "");
+
+        cli.runInteractive(new Scanner("project delete " + project.getId() + "\nn\nexit\n"));
+
+        assertThat(outContent.toString()).contains("Keep me", "[y/N]", "Deletion cancelled.")
+                .doesNotContain("Project deleted:");
+        assertThat(projectService.listProjects()).containsExactly(project);
+        assertThat(errContent.toString()).isEmpty();
+    }
+
+    @Test
+    void projectDeleteCanBeConfirmedWithoutInteractiveInput() {
+        Project project = projectService.createProject("Temporary", "");
+
+        cli.executeLine("project delete " + project.getId() + " --yes");
+
+        assertThat(outContent.toString()).contains("Project deleted: " + project.getId())
+                .doesNotContain("[y/N]");
+        assertThat(projectService.listProjects()).isEmpty();
+        assertThat(errContent.toString()).isEmpty();
+    }
+
     @ParameterizedTest
     @CsvSource(value = {
             "60, 60 min, -15 min",
