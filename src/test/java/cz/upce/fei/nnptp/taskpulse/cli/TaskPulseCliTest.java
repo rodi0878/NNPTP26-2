@@ -601,6 +601,21 @@ class TaskPulseCliTest {
         assertThat(errContent.toString()).contains(expectedError);
         assertThat(outContent.toString()).isEmpty();
     }
+
+    @ParameterizedTest
+    @CsvSource({
+            "stray, Unexpected argument: stray",
+            "--state TODO --state DONE, Duplicate option: --state",
+            "--overdue=true, Option --overdue does not accept a value"
+    })
+    void taskListRejectsUnexpectedAndRepeatedOptions(String options, String expectedError) {
+        taskWith45RecordedMinutes(30);
+
+        cli.executeLine("task list " + options);
+
+        assertThat(errContent.toString()).contains("Invalid argument: " + expectedError);
+        assertThat(outContent.toString()).isEmpty();
+    }
     
     @Test
     void taskListReportsUnknownProject() {

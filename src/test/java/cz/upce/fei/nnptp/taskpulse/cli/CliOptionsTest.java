@@ -110,17 +110,36 @@ class CliOptionsTest {
     }
 
     @Test
-    void ignoresFlagWithEqualsValueWithoutConsumingFollowingOption() {
-        CliOptions options = CliOptions.parse(List.of("--overdue=true", "--state", "TODO"), 0);
+    void rejectsValueAssignedToFlag() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> CliOptions.parse(List.of("--overdue=true", "--state", "TODO"), 0))
+                .withMessage("Option --overdue does not accept a value");
+    }
 
-        assertThat(options.has("--overdue")).isFalse();
+    @Test
+    void acceptsOptionsWhenParsingStartsAtFirstOption() {
+        CliOptions options = CliOptions.parse(List.of("--state", "TODO"), 0);
+
         assertThat(options.get("--state")).isEqualTo("TODO");
     }
 
     @Test
-    void skipsPositionalArgumentsWithoutConsumingFollowingOption() {
-        CliOptions options = CliOptions.parse(List.of("list", "--state", "TODO"), 0);
+    void rejectsUnexpectedPositionalArguments() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> CliOptions.parse(List.of("stray", "--state", "TODO"), 0))
+                .withMessage("Unexpected argument: stray");
+    }
 
-        assertThat(options.get("--state")).isEqualTo("TODO");
+    @Test
+    void rejectsDuplicateFlagsAndValueOptions() {
+        for (List<String> args : List.of(
+                List.of("--state", "TODO", "--state", "DONE"),
+                List.of("--STATE=TODO", "--state", "DONE"),
+                List.of("--overdue", "--overdue"))) {
+            String expectedOption = args.get(0).startsWith("--overdue") ? "--overdue" : "--state";
+            assertThatIllegalArgumentException()
+                    .isThrownBy(() -> CliOptions.parse(args, 0))
+                    .withMessage("Duplicate option: " + expectedOption);
+        }
     }
 }
