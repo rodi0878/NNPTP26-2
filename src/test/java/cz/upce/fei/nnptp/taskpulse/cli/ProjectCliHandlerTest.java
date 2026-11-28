@@ -18,6 +18,7 @@ class ProjectCliHandlerTest {
     private ByteArrayOutputStream stderr;
     private ProjectService service;
     private ProjectCliHandler handler;
+    private String[] input;
 
     @BeforeEach
     void setUp() {
@@ -26,7 +27,8 @@ class ProjectCliHandlerTest {
         var projects = new InMemoryProjectRepository();
         var tasks = new InMemoryTaskRepository();
         service = new ProjectService(projects, tasks);
-        handler = new ProjectCliHandler(service,
+        input = new String[]{null};
+        handler = new ProjectCliHandler(service, () -> input[0],
                 new PrintStream(stdout, true, StandardCharsets.UTF_8),
                 new PrintStream(stderr, true, StandardCharsets.UTF_8));
     }
@@ -85,9 +87,40 @@ class ProjectCliHandlerTest {
     @Test
     void deleteRemovesExistingProject() {
         var project = service.createProject("Temporary", "");
+        input[0] = "y";
         handler.handle(List.of("delete", project.getId().toString()));
         assertThat(service.listProjects()).isEmpty();
-        assertThat(stdout.toString(StandardCharsets.UTF_8)).contains("Project deleted: " + project.getId());
+        assertThat(stdout.toString(StandardCharsets.UTF_8))
+                .contains("Delete project " + project.getId() + " - Temporary? [y/N]",
+                        "Project deleted: " + project.getId());
+    }
+
+    @Test
+    void deleteCanBeConfirmedWithoutPromptForNonInteractiveUse() {
+        var project = service.createProject("Temporary", "");
+        handler.handle(List.of("delete", project.getId().toString(), "--yes"));
+        assertThat(service.listProjects()).isEmpty();
+        assertThat(stdout.toString(StandardCharsets.UTF_8))
+                .contains("Project deleted: " + project.getId())
+                .doesNotContain("[y/N]");
+    }
+
+    @Test
+    void deleteIsCancelledWhenNotConfirmedOrInputIsUnavailable() {
+        var project = service.createProject("Keep me", "");
+        handler.handle(List.of("delete", project.getId().toString()));
+        assertThat(service.listProjects()).containsExactly(project);
+        assertThat(stdout.toString(StandardCharsets.UTF_8))
+                .contains("[y/N]", "Deletion cancelled.")
+                .doesNotContain("Project deleted:");
+    }
+
+    @Test
+    void deleteRejectsUnsupportedOptionsWithoutDeletingProject() {
+        var project = service.createProject("Keep me", "");
+        handler.handle(List.of("delete", project.getId().toString(), "--force"));
+        assertThat(service.listProjects()).containsExactly(project);
+        assertThat(stderr.toString(StandardCharsets.UTF_8)).contains("Usage: project delete <project-id> [--yes]");
     }
 
     @Test

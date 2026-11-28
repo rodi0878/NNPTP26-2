@@ -33,7 +33,7 @@ public class TaskPulseCli {
         this.out = Objects.requireNonNull(out, "out must not be null");
         this.err = Objects.requireNonNull(err, "err must not be null");
         this.errorHandler = new CliErrorHandler(this.err);
-        handlers.put("project", new ProjectCliHandler(projectService, out, err));
+        handlers.put("project", new ProjectCliHandler(projectService, this::readLine, out, err));
         handlers.put("task", new TaskCliHandler(taskService, this::readLine, out, err));
         handlers.put("worklog", new WorklogCliHandler(taskService, out, err));
         handlers.put("report", new ReportCliHandler(projectService, taskService, out, err, clock));
@@ -120,7 +120,7 @@ public class TaskPulseCli {
         out.println("  project list");
         out.println("  project show <project-id>");
         out.println("  project edit <project-id> <name> [description]");
-        out.println("  project delete <project-id>");
+        out.println("  project delete <project-id> [--yes]");
         out.println("  task add <project-id> <title> [description] [--priority <priority>] [--estimate <minutes>] [--due <YYYY-MM-DD>]");
         out.println("  task list [--project <id>] [--state <state>] [--priority <priority>] [--label <label>]"
                 + " [--search <text>] [--overdue] [--exceeded [<minutes>]] [--sort <title|priority|duedate|priority-duedate>]"
